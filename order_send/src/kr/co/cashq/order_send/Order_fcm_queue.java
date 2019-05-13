@@ -25,7 +25,7 @@ import org.json.simple.JSONValue;
  * @author 문태부.
  * @date : 2019-05-10 오후 8:29:04
  *  @param['url']="http://baedalcook.co.kr/ 
- *   목적 : https://github.com/nike3265/baedalcook/issues/84
+ *   목적 : https://github.com/Taebu/order_send/issues/1
  *   이슈를 처리하기 위한 프로젝트 이며 5분(300초) 이상이 대기 중인 프로세스가 여전히 대기 중일때 상태를 변경하고 회원 정보를 조회하여 fcm을 전송한다.
  *    
  *  
