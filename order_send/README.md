@@ -1,5 +1,5 @@
-# Safen_cdr
-safen_point을 종전 0507_point.
+# order_send
+order_send를 .
 root@175.126.82.182:/home/hosting_users/cashq/www/adm/0507_point_cash_status.php
 경로의 프로그램이 crontab으로 구동 되는 것을 java project로 변경
 kr.co.cashq.safen_cdr 을 복사하여 프로젝트 진행.
