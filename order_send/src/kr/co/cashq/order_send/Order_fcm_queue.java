@@ -24,7 +24,7 @@ import org.json.simple.JSONValue;
  * Order_fmd_queue 테이블 관련 객체
  * @author 문태부.
  * @date : 2019-05-10 오후 8:29:04
- *  @param['url']="http://baedalcook.co.kr/ 
+ *  @param['url']="http://cashq.co.kr/ 
  *   목적 : https://github.com/Taebu/order_send/issues/1
  *   이슈를 처리하기 위한 프로젝트 이며 5분(300초) 이상이 대기 중인 프로세스가 여전히 대기 중일때 상태를 변경하고 회원 정보를 조회하여 fcm을 전송한다.
  *    
@@ -88,13 +88,26 @@ public class Order_fcm_queue {
 					
 			sb.append("select * from ordtake where 1=1 ");
 			
-			/* 결제완료를  조회 한다. */
-			sb.append(" and  pay_status in ('pc')");
+			
+			/* 주문 선택을 하지 않은 건을 조회 한다. */
+			sb.append(" and exam_num1='0' ");
+
+			/* 결제완료를  조회 한다.
+			 * 
+			 * 결제 완료
+			 * pc  = pay_complete
+			 * 
+			 * 현장 결제 요청
+			 * fpw = field pay wait
+			 * 
+			 * *************/
+
+			sb.append(" and  pay_status in ('pc', 'fpw') ");
 			
 			/* 결제가 이루어진 시점을 기준으로 5분이 지난 건을 조회 한다. */
-			sb.append(" and date_add(insdate,interval 5 minute)<now() ");
+			sb.append(" and date_add(order_date,interval 5 minute)>now() ");
 			
-			//sb.append(" and mb_hp='01077430009' ");
+
 			sb.append(" ;");
 			/*
 			 *  
@@ -113,8 +126,10 @@ public class Order_fcm_queue {
 					/* 배달승인 템플릿 */
 					message_info=get_bt_template("SJT_018117");
 
+					/* +82 0 - 문자를 제거합니다. */
 					mb_hp=mb_hp.replaceAll("\\-", "/").replaceAll("\\+82", "0").trim();
 					
+					/* 핸드폰인지 구분한다. */
 					is_hp=isCellphone(mb_hp);
 					
 					/* 배달주문의 고유 번호(bo_no)를 불러 옵니다. */
@@ -778,7 +793,7 @@ public class Order_fcm_queue {
 		StringBuilder sb = new StringBuilder();
 		MyDataObject dao = new MyDataObject();
 		
-		sb.append("SELECT * FROM bdcook.bt_template where bt_code=? limit 1");
+		sb.append("SELECT * FROM cashq.bt_template where bt_code=? limit 1");
 		try {
 			dao.openPstmt(sb.toString());
 			dao.pstmt().setString(1, bt_code);

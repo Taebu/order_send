@@ -32,7 +32,7 @@ public class ORDER_SEND {
 			strPrePath += File.separatorChar;
 		}
 		
-		Utils.getLogger().info("ORDER_SEND / Call2ATA_SEND program started!");
+		Utils.getLogger().info("ORDER_SEND program started!");
 		try {
 			terminate_this();// killme.txt파일이 존재하여도 프로그램구동시 정상구동되도록
 							// killme.txt파일을 지우고 시작한다.
@@ -42,7 +42,7 @@ public class ORDER_SEND {
 			DBConn.close();
 			CdrTrigger w = CdrTrigger.getInstance();
 			w.disconnectCallLogServer();
-			Utils.getLogger().info("ORDER_SEND / Call2ATA_SEND program ended!");
+			Utils.getLogger().info("ORDER_SEND program ended!");
 		} catch (Exception e) {
 			Utils.getLogger().warning(e.getMessage());
 			Utils.getLogger().warning(Utils.stack(e));
