@@ -149,7 +149,10 @@ public class Order_fcm_queue {
 					/* 가맹점 정보 */
 					store_info=get_store_info(st_seq);
 					
-					// store_info.size() == 0;
+					/*
+					 * 상점 정보가 없으면size()는  0을 리턴 한다. 
+					store_info.size() == 0;
+					*/
 					
 					/* +82 0 - 문자를 제거합니다. */
 					mb_hp=mb_hp.replaceAll("\\-", "/").replaceAll("\\+82", "0").trim();
@@ -157,15 +160,17 @@ public class Order_fcm_queue {
 					/* 핸드폰인지 구분한다. */
 					is_hp=isCellphone(mb_hp);
 					
-					//bo_status=dao.rs().getString("bo_status");
+					// 없는 값  
+					// bo_status=dao.rs().getString("bo_status");
 					
-					System.out.println(dao.rs().getString("bo_no"));
+					// 없는 값 System.out.println(dao.rs().getString("bo_no"));
 					if(contains(VALUES, bo_status ))
 					{
 						update_delivery_cancel(seq);
 						
 						/* 3. 배달 주문을 캔슬 상태인 `delivery_cancel` 로 변경합니다. */
-						String urls="http://img.cashq.co.kr/v2/ajax/set_fcm_cancel/"+Tradeid+"/"+mb_hp;
+						String urls="http://img.cashq.co.kr/api/set_order.php";
+						// +Tradeid+"/"+mb_hp;
 					
 						/* 쓰레드를 작동 한다.* /
 						 * 
@@ -798,4 +803,20 @@ public class Order_fcm_queue {
         return list;
     }
     // 출처: https://moonleafs.tistory.com/52 [달빛에 스러지는 낙엽들.]
+    
+    
+    /*
+     * run_thread()
+     * 쓰레드를 작동 시켜 10초마다 서버에 요청한다.
+     * 10초마다 요청을 하고 10초마다 요청하는 것이 30번을 하는 동안도 주문을 받지 않으면 주문 취소 함수를 실행한다.
+     * @param tradeid
+     * 
+     * */
+    private void run_thread(Map<String, String> order){
+    	
+    	boolean did_you_order = false;
+    	order.get("?");
+    	
+    	
+    }
 }
