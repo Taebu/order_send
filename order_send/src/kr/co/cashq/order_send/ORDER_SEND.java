@@ -245,20 +245,6 @@ public class ORDER_SEND {
 	}
 
 
-	/**
-	 * 안전한 종료를 수행할지 판단한 후 무한루프를 진입해야 한다면 true를 리턴한다.
-	 * 
-	 * @return
-	 */
-	private static boolean doWork2() {
-		if (terminate_this()) {
-			return false;
-		} else {
-			// /여기서 DB를 읽어서 작업한다.
-			Order_fcm_queue.doMainProcess2();
-			return true;
-		}
-	}
 
 	/**
 	 * 종료를 수행할지 결정한다. killme.txt파일이 존재하면 안전한 종료를 수행한다. 처음 시작시에 호출되기도 하지만 죽이는 기능이

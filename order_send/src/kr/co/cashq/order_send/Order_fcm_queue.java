@@ -101,7 +101,6 @@ public class Order_fcm_queue {
 			 * fpw = field pay wait
 			 * 
 			 * *************/
-
 			sb.append(" and  pay_status in ('pc', 'fpw') ");
 			
 			/* 결제가 이루어진 시점을 기준으로 5분이 지난 건을 조회 한다. */
@@ -115,7 +114,8 @@ public class Order_fcm_queue {
 			try {
 				dao.openPstmt(sb.toString());
 				dao.setRs(dao.pstmt().executeQuery());
-			  /* 2. 값이 있으면 */
+
+				/* 2. 값이 있으면 */
 			   while(dao.rs().next()) {
 					ORDER_SEND.heart_beat = 1;
 					bs_code=dao.rs().getString("MSTR");
@@ -145,7 +145,7 @@ public class Order_fcm_queue {
 					
 						
 					
-						String urls="http://baedalcook.co.kr/v2/ajax/set_fcm_cancel/"+Tradeid+"/"+mb_hp;
+						String urls="http://img.cashq.co.kr/v2/ajax/set_fcm_cancel/"+Tradeid+"/"+mb_hp;
 					
 						//
 						set_fcm(urls);
@@ -219,7 +219,6 @@ public class Order_fcm_queue {
 					}
 				} /* while(dao.rs().next()) {...} */
 			   
-			   doMainProcess2();
 			} catch (SQLException e) {
 				Utils.getLogger().warning(e.getMessage());
 				DBConn.latest_warning = "ErrPOS031";
@@ -233,287 +232,15 @@ public class Order_fcm_queue {
 			}
 		}
 	}
+
+	
 
 	
 	/**
-	 * safen_cmd_queue 테이블의 데이터를 처리하기 위한 주요한 처리를 수행한다.
+	 * set_frm
+	 * fcm을 전송한다.
 	 * 
-	 */
-	public static void doMainProcess2() {
-		Connection con = DBConn.getConnection();
-		/* 대리점 정보 */
-		Map<String, String> agency_info   = new HashMap<String, String>();
-		/* 상점 정보 */
-		Map<String, String> store_info      = new HashMap<String, String>();
-		
-		/* 메세지 정보 */
-		Map<String, String> message_info = new HashMap<String, String>();
-		
-		Map<String, String> push_info = new HashMap<String, String>();
-		/* 플러스친구 */
-		Map<String, String> plusfriend=new HashMap<String, String>();
-		
-		String biz_code="";
-		
-		String mb_hp="";
-		String appid="cashq";
-		
-		String st_no="";
-		
-		String messages="";
-		String[] regex_rule;
-		String[] regex_array;
-		int eventcnt = 0;
-		
-		/* 포인트 갯수를 센다. */
-		int point_count= 0;
-		
-		/* 핸드폰인지 여부 */
-		boolean is_hp = false;
-		
-		/* GCM 전송 성공 여부 */
-		boolean success_gcm = false;
-		
-		/* ATA 전송 성공 여부 */
-		boolean success_ata = false;
-		 
-		/* SMS 전송 성공 여부 */
-		boolean success_sms = false;
-		
-		/* 비즈톡에 입력된 값 */
-		int wr_idx=0;
-		String sender_key="";
-		String result_message="전달성공";
-		String virtual_number="";
-
-
-		if (con != null) {
-			MyDataObject dao = new MyDataObject();
-			MyDataObject dao2 = new MyDataObject();
-			MyDataObject dao3 = new MyDataObject();
-			MyDataObject dao4 = new MyDataObject();
-			MyDataObject dao5 = new MyDataObject();
-
-			StringBuilder sb = new StringBuilder();
-			//StringBuilder sb_log = new StringBuilder();
-			/* 
-			 * 1. 아래 조건을 만족하는 `0507_point` 테이블을 조회한다.  
-			 * 	조건 1) 오늘 입력된것.
-			 * 조건 2) 상태가 0인것.
-			 * 조건 3) "비즈코드"와 "이벤트코드"가 일치하는 것.
-			 * distinct는 할필요 없었다.
-			 */
-			sb.append("select ");
-			sb.append(" *,");
-			sb.append("FROM_BASE64(SEND_PHONE) SEND_PHONE2,");
-			sb.append("FROM_BASE64(RECEIVE_PHONE) RECEIVE_PHONE2 ");
-			sb.append(" from ifpl.`cdr` ");
-			
-			/* 대기중 인 결제완료, 현장카드, 현장현금 건을 조회 한다. */
-			sb.append(" where 1=1 and DURATION>50");
-			sb.append("  and ATA_SEND is NULL ");		
-			sb.append(" ; ");
-			
-			try {
-				dao.openPstmt(sb.toString());
-				dao.setRs(dao.pstmt().executeQuery());
-			  /* 2. 값이 있으면 */
-			   while(dao.rs().next()) {
-				   ORDER_SEND.heart_beat = 1;
-					
-					mb_hp=dao.rs().getString("SEND_PHONE2");
-					is_hp=isCellphone(mb_hp.trim());
-					
-					
-					/* 3. 포인트를 사용가능으로 변경합니다. */
-					update_ata(dao.rs().getString("CALLID"));
-					
-					virtual_number=dao.rs().getString("VIRTUALNUMBER");
-					
-					/* 4. 포인트 갯수를 센다.  */	
-
-					
-					/* 12. 상점 정보를 불러 옵니다. */
-					store_info=get_store(virtual_number);
-					
-					/* 템플릿 메세지를 가져옵니다. */
-					message_info=get_bt_template("SJT_018119");
-					
-
-     				//	System.out.println(message_info.get("ata_message"));
-					
-					
-					/**/
-					if(message_info.get("ata_status").equals("access")&&is_hp){
-						/*
-						 * #{거래일시}=bc_order.bo_insdate
-#{주문번호}=bc_order.Tradeid
-#{업체명}=bc_order.bs_name
-#{메뉴명}=bc_order.Prdtnm
-#{배달주소}=bc_order.mb_addr
-#{취소일시}=bc_order.bo_update	
-						 * */
-						
-						Map<String, String> messageMap=new HashMap<String, String>();
-						/* #{업체명} */
-						messageMap.put("bc_store.bs_name",store_info.get("bs_name"));
-
-						/* #{050번호} */
-						messageMap.put("bc_store.bs_vphone",virtual_number);
-						
-						/* #{주문일시} */
-						messageMap.put("cdr.CONN_TIME",dao.rs().getString("CONN_TIME"));
-						
-						/* #{고객센터} */
-						messageMap.put("service_center","02-3667-5279");
-								
-						/* 템플릿을 정해진 패턴대로 변경 합니다. 
-						 * @param bt_content 템플릿 내용, 
-						 * @param bt_regex 템플릿 패턴
-						 * @param messageMap 템플릿 패턴을 바꿀 내용
-						 * */
-						/* gcm messages */
-						messages=chg_regexrule(message_info.get("ata_message"),message_info.get("ata_regex"), messageMap);
-						System.out.println(messages);
-						
-
-						/* gcm 전송 실패시  */
-						regex_rule=message_info.get("ata_regex").split("&");
-						messages=chg_regexrule(message_info.get("ata_message"),message_info.get("ata_regex"), messageMap);
-
-					
-
-							/* ATA 전송*/
-							Map<String, String> ata_info = new HashMap<String, String>();
-							ata_info.put("dest_no",mb_hp);
-							ata_info.put("call_back","0236675279");
-							ata_info.put("msg_contents",messages);
-							ata_info.put("k_template_code","SJT_018119");
-							wr_idx=set_em_mmt_tran(ata_info);
-
-							/* Site_push_log*/
-
-							push_info.put("al_hp",mb_hp);
-							push_info.put("al_sender","0236675279");
-							
-							push_info.put("bp_code",store_info.get("bp_code"));
-							push_info.put("bs_code",store_info.get("bs_code"));
-							push_info.put("al_type","ATASEND");
-							push_info.put("al_subject",message_info.get("ata_title"));
-							push_info.put("al_content",messages);
-							push_info.put("al_result",String.valueOf(wr_idx));
-							
-							
-							/* 전송 성공 여부에 따라 사이트 푸시 로그를 생성합니다.*/
-							set_site_push_log(push_info);
-							update_status();
-					}
-						
-				} /* while(dao.rs().next()) {...} */
-			} catch (SQLException e) {
-				Utils.getLogger().warning(e.getMessage());
-				DBConn.latest_warning = "ErrPOS031";
-				e.printStackTrace();
-			} catch (Exception e) {
-				Utils.getLogger().warning(e.getMessage());
-				Utils.getLogger().warning(Utils.stack(e));
-				DBConn.latest_warning = "ErrPOS032";
-			}finally {
-				dao.closePstmt();
-				dao2.closePstmt();
-				dao3.closePstmt();
-				dao4.closePstmt();
-				dao5.closePstmt();
-			}
-			
-			//콜로그 마스터 정보의 레코드 1개를 갱신을 시도한다.
-			//Safen_master.doWark2();
-		}
-	}
-
-	
-	/**
-	 * safen_cmd_queue 테이블의 데이터를 처리하기 위한 주요한 처리를 수행한다.
-	 * 
-	 */
-	public static void doMainProcess21() {
-		Connection con = DBConn.getConnection();
-		String mb_hp="";
-		String bo_status="";
-		String Tradeid="";
-		String bo_no="";
-		String bs_code="";
-		final String[] VALUES = new String[] {"pay_complete","pay_real_card","pay_real_cash"};
-		if (con != null) {
-			MyDataObject dao = new MyDataObject();
-
-			StringBuilder sb = new StringBuilder();
-			//StringBuilder sb_log = new StringBuilder();
-			/* 
-			 * 1. 아래 조건을 만족하는 `0507_point` 테이블을 조회한다.  
-			 * 	조건 1) 오늘 입력된것.
-			 * 조건 2) 상태가 0인것.
-			 * 조건 3) "비즈코드"와 "이벤트코드"가 일치하는 것.
-			 * distinct는 할필요 없었다.
-			 */
-					
-			sb.append("select ");
-			sb.append(" *,");
-			sb.append("FROM_BASE64(SEND_PHONE) SEND_PHONE2,");
-			sb.append("FROM_BASE64(RECEIVE_PHONE) RECEIVE_PHONE2 ");
-			sb.append(" from ifpl.`cdr` ");
-			
-			/* 대기중 인 결제완료, 현장카드, 현장현금 건을 조회 한다. */
-			sb.append(" where 1=1 and DURATION>50");
-			sb.append("  and ATA_SEND is NULL ");		
-			sb.append(" ; ");
-			/*
-			 *  
-  		     * */
-			try {
-				dao.openPstmt(sb.toString());
-				dao.setRs(dao.pstmt().executeQuery());
-			  /* 2. 값이 있으면 */
-			   while(dao.rs().next()) {
-					ORDER_SEND.heart_beat = 1;
-					bs_code=dao.rs().getString("SEND_PHONE2");
-					mb_hp=dao.rs().getString("RECEIVE_PHONE2");
-					
-					
-					if(contains(VALUES, bo_status ))
-					{
-						update_delivery_cancel(bo_no);
-					/* 3. 배달 주문을 캔슬 상태인 `delivery_cancel` 로 변경합니다. */
-					
-					
-					mb_hp=mb_hp.replaceAll("\\-", "/");
-					
-					String urls="http://baedalcook.co.kr/v2/ajax/set_fcm_cancel/"+Tradeid+"/"+mb_hp;
-					
-					//
-					set_fcm(urls);
-					}
-					
-					if(bo_status.equals("delivery_wait")||bo_status.equals("delivery_handling"))
-					{
-						/* 배달중인 것을 배달 완료로 변경 3시간 후 */
-						update_delivery_complete();
-					}
-				} /* while(dao.rs().next()) {...} */
-			} catch (SQLException e) {
-				Utils.getLogger().warning(e.getMessage());
-				DBConn.latest_warning = "ErrPOS031";
-				e.printStackTrace();
-			} catch (Exception e) {
-				Utils.getLogger().warning(e.getMessage());
-				Utils.getLogger().warning(Utils.stack(e));
-				DBConn.latest_warning = "ErrPOS032";
-			}finally {
-				dao.closePstmt();
-			}
-		}
-	}
-	
+	 */	
 	private static boolean set_fcm(String urls) 
 	{
 		// TODO Auto-generated method stub
@@ -612,7 +339,7 @@ public class Order_fcm_queue {
 	}
 
 	/*********************************************
-	 * 3시간이 지난 배달대기 배달 중 주문은 배달 완료로 변경 한다. 
+	 * 주문 후 5분이 지난 배달대기 배달 중 주문은 배달취소(dd:denied_delivery) 로 변경 한다. 
 	 *********************************************/
 	private static void update_delivery_cancel(String bo_no) {
 
@@ -620,7 +347,7 @@ public class Order_fcm_queue {
 		StringBuilder sb = new StringBuilder();
 		
 		try {
-				sb.append("update bdcook.bc_order SET bo_status='delivery_cancel' ");
+				sb.append("update cashq.ordtake SET status='dd' ");
 				sb.append(" where  bo_no=? ;");
 				dao.openPstmt(sb.toString());
 				
@@ -644,11 +371,8 @@ public class Order_fcm_queue {
 	}
 
 	/**
-	 * 해당 상점을 사용 가능으로 변경한다.
-	 * @param safen0504
-	 * @param safen_in010
-	 * @param mapping_option
-	 * @param retCode
+	 * update_delivery_complete
+	 * 주문 건을 자동으로 3시간이 지난 건은 배달 완료 라고 보고 배달 완료로 변경한다.
 	 */
 	private static void update_delivery_complete() {
 
@@ -656,9 +380,9 @@ public class Order_fcm_queue {
 		StringBuilder sb = new StringBuilder();
 		
 		try {
-				sb.append("update bdcook.bc_order SET bo_status='delivery_complete' ");
-				sb.append(" where date_add(bo_insdate,interval 3 hour)<now() ");
-				sb.append(" and bo_status in ('delivery_wait','delivery_handling') ;");
+				sb.append("update cashq.ordtake SET pay_status='dc' ");
+				sb.append(" where date_add(insdate,interval 3 hour)<now() ");
+				sb.append(" and pay_status in ('di') ;");
 				dao.openPstmt(sb.toString());
 
 				dao.pstmt().executeUpdate();
