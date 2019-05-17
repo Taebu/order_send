@@ -140,8 +140,6 @@ public class Order_fcm_queue {
 					seq=dao.rs().getString("seq");
 					st_seq=dao.rs().getString("st_seq");
 	
-					st_seq = "7246999";
-					
 					mb_hp=dao.rs().getString("mb_hp");
 					Tradeid=dao.rs().getString("Tradeid");
 					
@@ -175,7 +173,8 @@ public class Order_fcm_queue {
 						/* 쓰레드를 작동 한다.* /
 						 * 
 						 */
-						// run_thread();
+						run_thread(order_info);
+						
 						set_fcm(urls);
 						if(store_info.get("ata_status").equals("access")&&is_hp)
 						{
@@ -812,11 +811,61 @@ public class Order_fcm_queue {
      * @param tradeid
      * 
      * */
-    private void run_thread(Map<String, String> order){
+    private static void run_thread(Map<String, String> order_info){
     	
     	boolean did_you_order = false;
-    	order.get("?");
+    	int max_apns_count = 30;
     	
+    	if(!did_you_order){
+    		
+    		
+    		did_you_order=check_order(order_info.get("seq"));
+    		if(!did_you_order){
+    			/*thread *30 회 구현 10초마다. */
+    		}
+    		
+    	}
     	
     }
+
+	/**
+	 * check_order
+	 * 주문 정보인 seq로 주문을 받았는지 받지 않았는지 체크 한다. 받지 않았으면 false를 받았으면 true를 리턴한다.  
+	 * @param String seq 주문 번호
+	 */
+	private static boolean check_order(String seq) {
+		// TODO Auto-generated method stub
+		StringBuilder sb = new StringBuilder();
+		StringBuilder sb2 = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		MyDataObject dao2 = new MyDataObject();
+		int wr_idx=0;
+		boolean did_you_order = false;
+		
+		sb.append("select * from cashq.ortake where seq=? ");
+
+	
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, seq);
+			dao.setRs (dao.pstmt().executeQuery());
+			if (dao.rs().next()) {
+				did_you_order = !"0".equals(dao.rs().getString("exam_num1"));
+			}
+
+		} catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS060";
+		} catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS061";
+		} finally {
+			dao.closePstmt();
+			dao2.closePstmt();
+		}
+		return did_you_order;
+		
+	}
 }
