@@ -9,6 +9,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,14 +43,21 @@ public class Order_fcm_queue {
 		String mb_hp="";
 		String bo_status="";
 		String Tradeid="";
-		String bo_no="";
+		String seq="0";
+		String st_seq="0";
 		String bs_code="";
 		String mb_address="";
 		
+		/* 배열에 들어간것은 끝난 것으로 해서 프로그램을 프로그램 루프 상 제외 문제일 경우 예외 처리하는 프로세스를 띄운다. */
 		final String[] VALUES = new String[] {"pay_complete","pay_real_card","pay_real_cash"};
-		/* 메세지 정보 */
-		Map<String, String> message_info = new HashMap<String, String>();
+		
+		/* 가맹점 정보 */
+		Map<String, String> store_info = new HashMap<String, String>();
 
+		/* 주문 정보 */
+		Map<String, String> order_info = new HashMap<String, String>();
+
+		
 		/* 푸시 정보 */
 		Map<String, String> push_info = new HashMap<String, String>();
 		String messages="";
@@ -70,6 +79,10 @@ public class Order_fcm_queue {
 		 
 		/* SMS 전송 성공 여부 */
 		boolean success_sms = false;
+		
+		
+		/* 주문을 받았나? */
+		boolean did_set_order = false;
 		
 		/* 비즈톡에 입력된 값 */
 		int wr_idx=0;	
@@ -118,41 +131,51 @@ public class Order_fcm_queue {
 				/* 2. 값이 있으면 */
 			   while(dao.rs().next()) {
 					ORDER_SEND.heart_beat = 1;
-					bs_code=dao.rs().getString("MSTR");
+					
+					/* resultSet 을 Map<string,String>형태로 변환 한다. */
+					order_info = getResultMapRows(dao.rs());
+					
+					/* 배달주문의 고유 번호(seq)를 불러 옵니다. */
+					
+					seq=dao.rs().getString("seq");
+					st_seq=dao.rs().getString("st_seq");
+	
+					st_seq = "7246999";
+					
 					mb_hp=dao.rs().getString("mb_hp");
 					Tradeid=dao.rs().getString("Tradeid");
 					
 					
-					/* 배달승인 템플릿 */
-					message_info=get_bt_template("SJT_018117");
-
+					/* 가맹점 정보 */
+					store_info=get_store_info(st_seq);
+					
+					// store_info.size() == 0;
+					
 					/* +82 0 - 문자를 제거합니다. */
 					mb_hp=mb_hp.replaceAll("\\-", "/").replaceAll("\\+82", "0").trim();
 					
 					/* 핸드폰인지 구분한다. */
 					is_hp=isCellphone(mb_hp);
 					
-					/* 배달주문의 고유 번호(bo_no)를 불러 옵니다. */
-					bo_no=dao.rs().getString("bo_no");
-					bo_status=dao.rs().getString("bo_status");
+					//bo_status=dao.rs().getString("bo_status");
 					
 					System.out.println(dao.rs().getString("bo_no"));
 					if(contains(VALUES, bo_status ))
 					{
-						update_delivery_cancel(bo_no);
-					/* 3. 배달 주문을 캔슬 상태인 `delivery_cancel` 로 변경합니다. */
-					
-					
+						update_delivery_cancel(seq);
 						
-					
+						/* 3. 배달 주문을 캔슬 상태인 `delivery_cancel` 로 변경합니다. */
 						String urls="http://img.cashq.co.kr/v2/ajax/set_fcm_cancel/"+Tradeid+"/"+mb_hp;
 					
-						//
+						/* 쓰레드를 작동 한다.* /
+						 * 
+						 */
+						// run_thread();
 						set_fcm(urls);
-						if(message_info.get("ata_status").equals("access")&&is_hp)
+						if(store_info.get("ata_status").equals("access")&&is_hp)
 						{
 							/* 배달취소 템플릿 */
-							message_info=get_bt_template("SJT_018118");								
+							store_info=get_store_info("SJT_018118");								
 
 							mb_address=dao.rs().getString("mb_addr1")+" "+dao.rs().getString("mb_addr2");
 							Map<String, String> messageMap=new HashMap<String, String>();
@@ -174,13 +197,13 @@ public class Order_fcm_queue {
 							/* #{취소일시} */
 							messageMap.put("bc_order.bo_update",Utils.get_now());
 							
-							messages=chg_regexrule(message_info.get("ata_message"),message_info.get("ata_regex"), messageMap);
+							messages=chg_regexrule(store_info.get("ata_message"),store_info.get("ata_regex"), messageMap);
 							System.out.println(messages);
 							
 
 							/* gcm 전송 실패시  */
-							regex_rule=message_info.get("ata_regex").split("&");
-							messages=chg_regexrule(message_info.get("ata_message"),message_info.get("ata_regex"), messageMap);
+							regex_rule=store_info.get("ata_regex").split("&");
+							messages=chg_regexrule(store_info.get("ata_message"),store_info.get("ata_regex"), messageMap);
 
 						
 
@@ -199,7 +222,7 @@ public class Order_fcm_queue {
 								
 
 								push_info.put("al_type","ATASEND");
-								push_info.put("al_subject",message_info.get("ata_title"));
+								push_info.put("al_subject",store_info.get("ata_title"));
 								push_info.put("al_content",messages);
 								push_info.put("al_result",String.valueOf(wr_idx));
 								push_info.put("Tradeid",dao.rs().getString("Tradeid"));
@@ -339,19 +362,21 @@ public class Order_fcm_queue {
 	}
 
 	/*********************************************
-	 * 주문 후 5분이 지난 배달대기 배달 중 주문은 배달취소(dd:denied_delivery) 로 변경 한다. 
+	 * update_delivery_cancel
+	 * 주문 후 5분이 지난 배달대기 배달 중 주문은 배달취소(dd:denied_delivery) 로 변경 한다.
+	 * @param string seq  
 	 *********************************************/
-	private static void update_delivery_cancel(String bo_no) {
+	private static void update_delivery_cancel(String seq) {
 
 		MyDataObject dao = new MyDataObject();
 		StringBuilder sb = new StringBuilder();
 		
 		try {
 				sb.append("update cashq.ordtake SET status='dd' ");
-				sb.append(" where  bo_no=? ;");
+				sb.append(" where  seq=? ;");
 				dao.openPstmt(sb.toString());
 				
-				dao.pstmt().setString(1, bo_no);
+				dao.pstmt().setString(1, seq);
 				dao.pstmt().executeUpdate();
 				
 				dao.tryClose();
@@ -381,7 +406,7 @@ public class Order_fcm_queue {
 		
 		try {
 				sb.append("update cashq.ordtake SET pay_status='dc' ");
-				sb.append(" where date_add(insdate,interval 3 hour)<now() ");
+				sb.append(" where date_add(up_time,interval 5 hour)<now() ");
 				sb.append(" and pay_status in ('di') ;");
 				dao.openPstmt(sb.toString());
 
@@ -460,81 +485,32 @@ public class Order_fcm_queue {
 		}
 	}
 
-	/**
-	 * @param string
-	 * @return
-	 */
-	private static Map<String, String> get_store(String virtual_number) {
-		// TODO Auto-generated method stub
-		Map<String, String> store_info=new HashMap<String, String>();
-		store_info.put("bs_name","매장명");
-		store_info.put("bs_vphone","05012341234");
-		store_info.put("bs_phone","0212341234");
-		store_info.put("bs_code","B0000001");
-		store_info.put("bp_code","admin");
-		
-		StringBuilder sb = new StringBuilder();
-		MyDataObject dao = new MyDataObject();
-		sb.append("SELECT * FROM bdcook.bc_store where bs_vphone=? limit 1");
-		try {
-			dao.openPstmt(sb.toString());
-			dao.pstmt().setString(1, virtual_number);
-			System.out.println(virtual_number);
-			dao.setRs (dao.pstmt().executeQuery());
-
-			if (dao.rs().next()) {
-				store_info.put("bs_name",dao.rs().getString("bs_name"));
-				store_info.put("bs_vphone",dao.rs().getString("bs_vphone"));
-				store_info.put("bs_phone",dao.rs().getString("bs_phone"));
-				store_info.put("bs_code",dao.rs().getString("bs_code"));
-				store_info.put("bp_code",dao.rs().getString("bp_code"));				
-			}			
-		}catch (SQLException e) {
-			Utils.getLogger().warning(e.getMessage());
-			DBConn.latest_warning = "ErrPOS039";
-			e.printStackTrace();
-		}catch (Exception e) {
-			Utils.getLogger().warning(e.getMessage());
-			Utils.getLogger().warning(Utils.stack(e));
-			DBConn.latest_warning = "ErrPOS040";
-		}
-		finally {
-			dao.closePstmt();
-		}
-		return store_info;
-	}
 
 
 	/**
-	 * @param appid
-	 * @return
+	 * get_store_info
+	 * 가맹점 정보를 불러온다. 
+	 * @param seq(seq)
+	 * @return store <Stirng,String>
 	 */
-	private static Map<String, String> get_bt_template(String bt_code) {
+	private static Map<String, String> get_store_info(String seq) {
 		// TODO Auto-generated method stub
-		Map<String, String> message=new HashMap<String, String>();
+		Map<String, String> store=new HashMap<String, String>();
 
 		
 		StringBuilder sb = new StringBuilder();
 		MyDataObject dao = new MyDataObject();
 		
-		sb.append("SELECT * FROM cashq.bt_template where bt_code=? limit 1");
+		sb.append("SELECT * FROM cashq.store where seq=? limit 1");
 		try {
 			dao.openPstmt(sb.toString());
-			dao.pstmt().setString(1, bt_code);
-			System.out.println(bt_code);
+			dao.pstmt().setString(1, seq);
+			System.out.println(seq);
 			dao.setRs (dao.pstmt().executeQuery());
 
 			while(dao.rs().next()) 
 			{
-			
-			
-				
-				message.put("ata_title",dao.rs().getString("bt_name"));					
-				message.put("ata_message",dao.rs().getString("bt_content"));
-				message.put("ata_regex",dao.rs().getString("bt_regex"));
-				message.put("bt_code",dao.rs().getString("bt_code"));
-				message.put("ata_status",dao.rs().getString("bt_status"));
-				
+				store = getResultMapRows(dao.rs());
 			}			
 		}catch (SQLException e) {
 			Utils.getLogger().warning(e.getMessage());
@@ -548,7 +524,7 @@ public class Order_fcm_queue {
 		finally {
 			dao.closePstmt();
 		}
-		return message;
+		return store;
 	}
 
 	/**
@@ -788,4 +764,38 @@ public class Order_fcm_queue {
 	    return Pattern.matches("01(?:0|1|[6-9])(?:\\d{3}|\\d{4})\\d{4}", str);
 	
 	}
+
+	/**
+     * ResultSet을 Row마다 Map에 저장후 List에 다시 저장.
+     * @param rs DB에서 가져온 ResultSet
+     * @return Listt<map> 형태로 리턴
+     * @throws Exception Collection
+     */
+    private static Map<String, String> getResultMapRows(ResultSet rs) throws Exception
+    {
+        // ResultSet 의 MetaData를 가져온다.
+        ResultSet metaData = (ResultSet) rs;
+        // ResultSet 의 Column의 갯수를 가져온다.
+        
+        int sizeOfColumn = metaData.getMetaData().getColumnCount();
+        
+        Map<String, String> list = new HashMap<String, String>();
+        
+        String column_name;
+        
+        // rs의 내용을 돌려준다.
+        if(sizeOfColumn>0)
+        {
+            // Column의 갯수만큼 회전
+            for (int indexOfcolumn = 0; indexOfcolumn < sizeOfColumn; indexOfcolumn++)
+            {
+                column_name = metaData.getMetaData().getColumnName(indexOfcolumn + 1);
+                // map에 값을 입력 map.put(columnName, columnName으로 getString)
+                list.put(column_name,rs.getString(column_name));
+
+            }
+        }
+        return list;
+    }
+    // 출처: https://moonleafs.tistory.com/52 [달빛에 스러지는 낙엽들.]
 }
