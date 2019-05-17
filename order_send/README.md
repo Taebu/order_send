@@ -50,7 +50,10 @@ character_set_client: utf8
 collation_connection: utf8_general_ci
   Database Collation: utf8_general_ci
 1 rows in set
+```
 
+상세 상태
+```sql
 CREATE EVENT `ev_ordtake` 
 ON SCHEDULE EVERY 1 MINUTE 
 STARTS '2018-01-03 16:04:53' ON 
@@ -61,7 +64,7 @@ PRESERVE ENABLE DO BEGIN
  up_time=now() 
  where date_add(insdate,interval 1 hour)<now()
   and pay_status='di';
-``
+```
 
 
 ## Java 수정 후 구동 되게 만들기
