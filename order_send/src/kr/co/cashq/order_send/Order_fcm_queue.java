@@ -88,41 +88,28 @@ public class Order_fcm_queue {
 		int wr_idx=0;	
 		if (con != null) {
 			MyDataObject dao = new MyDataObject();
-
 			StringBuilder sb = new StringBuilder();
-			//StringBuilder sb_log = new StringBuilder();
-			/* 
-			 * 1. 아래 조건을 만족하는 `0507_point` 테이블을 조회한다.  
-			 * 	조건 1) 오늘 입력된것.
-			 * 조건 2) 상태가 0인것.
-			 * 조건 3) "비즈코드"와 "이벤트코드"가 일치하는 것.
-			 * distinct는 할필요 없었다.
-			 */
+			
+			/*********************************************************
+			 * 1. 아래 조건을 만족하는 `cashq`.`ordtake` 테이블을 조회한다.  
+			 * 	조건 1) 결제완료(pc : pay_complete,  fpw : field pay wait)를  조회 한다..
+			 *   - pay_status in ('pc', 'fpw')
+			 * 조건 2) 주문 선택을 하지 않은 건을 조회 한다.
+			 *  -  exam_num1='0' 
+			 * 조건 3) 결제가 이루어진 시점을 기준으로 5분이 지난 건을 조회 한다.
+			 *  - date_add(order_date,interval 5 minute)>now() 
+			 *********************************************************/
 					
 			sb.append("select * from ordtake where 1=1 ");
-			
-			
-			/* 주문 선택을 하지 않은 건을 조회 한다. */
-			sb.append(" and exam_num1='0' ");
-
-			/* 결제완료를  조회 한다.
-			 * 
-			 * 결제 완료
-			 * pc  = pay_complete
-			 * 
-			 * 현장 결제 요청
-			 * fpw = field pay wait
-			 * 
-			 * *************/
 			sb.append(" and  pay_status in ('pc', 'fpw') ");
-			
-			/* 결제가 이루어진 시점을 기준으로 5분이 지난 건을 조회 한다. */
+			sb.append(" and exam_num1='0' ");
 			sb.append(" and date_add(order_date,interval 5 minute)>now() ");
-			
-
 			sb.append(" ;");
+			
 			/*
-			 *  
+			 * try  SQLException e,Exception e
+			 * finally dao.closePstmt();
+			   
   		     * */
 			try {
 				dao.openPstmt(sb.toString());
@@ -144,7 +131,7 @@ public class Order_fcm_queue {
 					Tradeid=dao.rs().getString("Tradeid");
 					
 					
-					/* 가맹점 정보 */
+					/*상점아이디를 조회한다. select * from store where seq=? */
 					store_info=get_store_info(st_seq);
 					
 					/*
@@ -158,6 +145,10 @@ public class Order_fcm_queue {
 					/* 핸드폰인지 구분한다. */
 					is_hp=isCellphone(mb_hp);
 					
+					ThreadControl tc = new ThreadControl();
+					tc.setSt_no(seq);
+					String[] test_array = {"a","b"};
+					tc.main(test_array);
 					// 없는 값  
 					// bo_status=dao.rs().getString("bo_status");
 					
@@ -245,7 +236,7 @@ public class Order_fcm_queue {
 						update_delivery_complete();
 					}
 				} /* while(dao.rs().next()) {...} */
-			   
+			    
 			} catch (SQLException e) {
 				Utils.getLogger().warning(e.getMessage());
 				DBConn.latest_warning = "ErrPOS031";
@@ -833,16 +824,13 @@ public class Order_fcm_queue {
 	 * 주문 정보인 seq로 주문을 받았는지 받지 않았는지 체크 한다. 받지 않았으면 false를 받았으면 true를 리턴한다.  
 	 * @param String seq 주문 번호
 	 */
-	private static boolean check_order(String seq) {
+	public static boolean check_order(String seq) {
 		// TODO Auto-generated method stub
 		StringBuilder sb = new StringBuilder();
-		StringBuilder sb2 = new StringBuilder();
 		MyDataObject dao = new MyDataObject();
-		MyDataObject dao2 = new MyDataObject();
-		int wr_idx=0;
 		boolean did_you_order = false;
 		
-		sb.append("select * from cashq.ortake where seq=? ");
+		sb.append("select * from cashq.ordtake where seq=? ");
 
 	
 		try {
@@ -850,6 +838,7 @@ public class Order_fcm_queue {
 			dao.pstmt().setString(1, seq);
 			dao.setRs (dao.pstmt().executeQuery());
 			if (dao.rs().next()) {
+				/*0 exam*/
 				did_you_order = !"0".equals(dao.rs().getString("exam_num1"));
 			}
 
@@ -863,7 +852,44 @@ public class Order_fcm_queue {
 			DBConn.latest_warning = "ErrPOS061";
 		} finally {
 			dao.closePstmt();
-			dao2.closePstmt();
+		}
+		return did_you_order;
+		
+	}
+
+	/**
+	 * check_order
+	 * 주문 정보인 seq로 주문을 받았는지 받지 않았는지 체크 한다. 받지 않았으면 false를 받았으면 true를 리턴한다.  
+	 * @param String seq 주문 번호
+	 */
+	public static String check_order_result(String seq) {
+		// TODO Auto-generated method stub
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		String did_you_order = "0";
+		
+		sb.append("select * from cashq.ordtake where seq=? ");
+
+	
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, seq);
+			dao.setRs (dao.pstmt().executeQuery());
+			if (dao.rs().next()) {
+				/*0 exam*/
+				did_you_order = dao.rs().getString("exam_num1");
+			}
+
+		} catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS060";
+		} catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS061";
+		} finally {
+			dao.closePstmt();
 		}
 		return did_you_order;
 		
