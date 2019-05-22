@@ -145,12 +145,8 @@ public class Order_fcm_queue {
 					/* 핸드폰인지 구분한다. */
 					is_hp=isCellphone(mb_hp);
 					
-					ThreadControl tc = new ThreadControl();
-					tc.setSt_no(seq);
-					String[] test_array = {"a","b"};
-					tc.main(test_array);
+					
 					// 없는 값  
-					// bo_status=dao.rs().getString("bo_status");
 					
 					// 없는 값 System.out.println(dao.rs().getString("bo_no"));
 					if(contains(VALUES, bo_status ))
