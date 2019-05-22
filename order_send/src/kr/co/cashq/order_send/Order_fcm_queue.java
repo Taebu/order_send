@@ -38,6 +38,7 @@ public class Order_fcm_queue {
 	 * safen_cmd_queue 테이블의 데이터를 처리하기 위한 주요한 처리를 수행한다.
 	 * 
 	 */
+	
 	public static void doMainProcess() {
 		Connection con = DBConn.getConnection();
 		String mb_hp="";
@@ -47,7 +48,7 @@ public class Order_fcm_queue {
 		String st_seq="0";
 		String bs_code="";
 		String mb_address="";
-		
+		TimerMachine tm = new TimerMachine();
 		/* 배열에 들어간것은 끝난 것으로 해서 프로그램을 프로그램 루프 상 제외 문제일 경우 예외 처리하는 프로세스를 띄운다. */
 		final String[] VALUES = new String[] {"pay_complete","pay_real_card","pay_real_cash"};
 		
@@ -64,6 +65,10 @@ public class Order_fcm_queue {
 		String[] regex_rule;
 		String[] regex_array;
 		int eventcnt = 0;
+		String machine_number1_order_number = "";
+		String machine_number2_order_number = "";
+		String machine_number3_order_number = "";
+		String machine_number4_order_number = "";
 		
 		/* 포인트 갯수를 센다. */
 		int point_count= 0;
@@ -146,7 +151,23 @@ public class Order_fcm_queue {
 					is_hp=isCellphone(mb_hp);
 					
 					
-					// 없는 값  
+					// TimerMachine 구현  
+					System.out.println(machine_number1_order_number);
+					machine_number1_order_number = seq;
+					
+					if(tm.getHasStarted1()){
+						System.out.println("1 구동중 ");
+					}else{
+						System.out.println("1 정지중  ");
+					}
+					if(!tm.getHasStarted1()&&machine_number1_order_number.equals("")){
+						
+						
+						tm.setHasStarted1(true);
+						tm.timer_machine1(seq);
+					}else{
+						machine_number1_order_number = "";
+					}
 					
 					// 없는 값 System.out.println(dao.rs().getString("bo_no"));
 					if(contains(VALUES, bo_status ))
