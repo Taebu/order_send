@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
 
 /**
@@ -22,7 +23,28 @@ public class ORDER_SEND {
 	private static int call_log_skip_count = 60;
 	private static Calendar pivotFutureTime;
 	private static long loggedTime = 0;
+	public static boolean hasStarted1,hasStarted2,hasStarted3,hasStarted4;
+	public static String machine_number1_order_number = "",
+			machine_number2_order_number= "",
+			machine_number3_order_number= "",
+			machine_number4_order_number= "";
+	
 
+	public static ArrayList<String> check_order_number = new ArrayList<String>();
+	
+	/* 생성자 constructor 기본 초기값 구성 */
+	ORDER_SEND() {
+		hasStarted1 = false;
+		hasStarted2 = false;
+		hasStarted3 = false;
+		hasStarted4 = false;
+		machine_number1_order_number ="";
+		machine_number2_order_number ="";
+		machine_number3_order_number ="";
+		machine_number4_order_number ="";
+		
+	}
+	
 	// 프로세스의 시작점
 	public static void main(String[] args) {
 		

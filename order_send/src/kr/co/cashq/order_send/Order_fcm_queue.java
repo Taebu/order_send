@@ -8,11 +8,12 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
@@ -139,11 +140,6 @@ public class Order_fcm_queue {
 					/*상점아이디를 조회한다. select * from store where seq=? */
 					store_info=get_store_info(st_seq);
 					
-					/*
-					 * 상점 정보가 없으면size()는  0을 리턴 한다. 
-					store_info.size() == 0;
-					*/
-					
 					/* +82 0 - 문자를 제거합니다. */
 					mb_hp=mb_hp.replaceAll("\\-", "/").replaceAll("\\+82", "0").trim();
 					
@@ -152,99 +148,63 @@ public class Order_fcm_queue {
 					
 					
 					// TimerMachine 구현  
-					System.out.println(machine_number1_order_number);
-					machine_number1_order_number = seq;
 					
-					if(tm.getHasStarted1()){
-						System.out.println("1 구동중 ");
-					}else{
-						System.out.println("1 정지중  ");
-					}
-					if(!tm.getHasStarted1()&&machine_number1_order_number.equals("")){
+					boolean in_order_number = ORDER_SEND.check_order_number.contains(seq);
+					
+					/* 첫번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 첫번째 timer_machine을 구동합니다.*/
+					if(!ORDER_SEND.hasStarted1&&!in_order_number){
 						
+						/* arraylist 에 "해당 주문 번호"(ordtake.seq) 추가 한다. */
+						ORDER_SEND.check_order_number.add(seq);
 						
-						tm.setHasStarted1(true);
+						/* 첫번째  머신이 실행되었다고 선언한다. */
+						ORDER_SEND.hasStarted1 = true;
+						
+						/* 첫번째  머신을 구동한다. */
 						tm.timer_machine1(seq);
-					}else{
-						machine_number1_order_number = "";
+					
+					/* 두번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 두번째 timer_machine을 구동합니다.*/
+					}else if(!ORDER_SEND.hasStarted2&&!in_order_number){
+						
+						/* arraylist 에 "해당 주문 번호"(ordtake.seq) 추가 한다. */
+						ORDER_SEND.check_order_number.add(seq);
+						
+						/* 두번째  머신이 실행되었다고 선언한다. */
+						ORDER_SEND.hasStarted2 = true;
+						
+						/*두번째  머신을 구동한다. */
+						tm.timer_machine2(seq);
+
+					/* 세번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 세번째 timer_machine을 구동합니다.*/
+					}else if(!ORDER_SEND.hasStarted3&&!in_order_number){
+						
+						/* arraylist 에 "해당 주문 번호"(ordtake.seq) 추가 한다. */
+						ORDER_SEND.check_order_number.add(seq);
+						
+						/* 세번째  머신이 실행되었다고 선언한다. */
+						ORDER_SEND.hasStarted3 = true;
+						
+						/* 세번째  머신을 구동한다. */
+						tm.timer_machine3(seq);
+					
+					/* 네번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 네번째 timer_machine을 구동합니다.*/
+					}else if(!ORDER_SEND.hasStarted4&&!in_order_number){
+						
+						/* arraylist 에 "해당 주문 번호"(ordtake.seq) 추가 한다. */
+						ORDER_SEND.check_order_number.add(seq);
+						
+						/* 네번째  머신이 실행되었다고 선언한다. */
+						ORDER_SEND.hasStarted4 = true;
+						
+						/* 네번째  머신을 구동한다. */
+						tm.timer_machine4(seq);
 					}
+					
 					
 					// 없는 값 System.out.println(dao.rs().getString("bo_no"));
-					if(contains(VALUES, bo_status ))
+					if(contains(VALUES, bo_status))
 					{
 						update_delivery_cancel(seq);
-						
-						/* 3. 배달 주문을 캔슬 상태인 `delivery_cancel` 로 변경합니다. */
-						String urls="http://img.cashq.co.kr/api/set_order.php";
-						// +Tradeid+"/"+mb_hp;
-					
-						/* 쓰레드를 작동 한다.* /
-						 * 
-						 */
-						run_thread(order_info);
-						
-						set_fcm(urls);
-						if(store_info.get("ata_status").equals("access")&&is_hp)
-						{
-							/* 배달취소 템플릿 */
-							store_info=get_store_info("SJT_018118");								
-
-							mb_address=dao.rs().getString("mb_addr1")+" "+dao.rs().getString("mb_addr2");
-							Map<String, String> messageMap=new HashMap<String, String>();
-							/* #{업체명} */
-							messageMap.put("bc_order.bo_insdate",dao.rs().getString("bo_insdate"));
-
-							/* #{주문번호} */
-							messageMap.put("bc_order.Tradeid",dao.rs().getString("Tradeid"));
-
-							/* #{050번호} */
-							messageMap.put("bc_order.bs_name",dao.rs().getString("bs_name"));
-
-							/* #{배달주소} */
-							messageMap.put("bc_order.mb_addr",mb_address);
-
-							/* #{메뉴명} */
-							messageMap.put("bc_order.Prdtnm",dao.rs().getString("Prdtnm"));
-
-							/* #{취소일시} */
-							messageMap.put("bc_order.bo_update",Utils.get_now());
-							
-							messages=chg_regexrule(store_info.get("ata_message"),store_info.get("ata_regex"), messageMap);
-							System.out.println(messages);
-							
-
-							/* gcm 전송 실패시  */
-							regex_rule=store_info.get("ata_regex").split("&");
-							messages=chg_regexrule(store_info.get("ata_message"),store_info.get("ata_regex"), messageMap);
-
-						
-
-								/* ATA 전송*/
-								Map<String, String> ata_info = new HashMap<String, String>();
-								ata_info.put("dest_no",mb_hp);
-								ata_info.put("call_back","0236675279");
-								ata_info.put("msg_contents",messages);
-								ata_info.put("k_template_code","SJT_018118");
-								wr_idx=set_em_mmt_tran(ata_info);
-
-								/* Site_push_log*/
-
-								push_info.put("al_hp",mb_hp);
-								push_info.put("al_sender","0236675279");
-								
-
-								push_info.put("al_type","ATASEND");
-								push_info.put("al_subject",store_info.get("ata_title"));
-								push_info.put("al_content",messages);
-								push_info.put("al_result",String.valueOf(wr_idx));
-								push_info.put("Tradeid",dao.rs().getString("Tradeid"));
-								
-								
-								/* 전송 성공 여부에 따라 사이트 푸시 로그를 생성합니다.*/
-								set_site_push_log(push_info);
-						
-						}
-
 					}
 					
 					if(bo_status.equals("delivery_wait")||bo_status.equals("delivery_handling"))
@@ -272,22 +232,19 @@ public class Order_fcm_queue {
 
 	
 	/**
-	 * set_frm
+	 * set_
 	 * fcm을 전송한다.
 	 * 
 	 */	
-	private static boolean set_fcm(String urls) 
+	public static boolean set_notification(String seq,String order_try_count) 
 	{
 		// TODO Auto-generated method stub
 		/* 1. GCM을 전송한다. */
 		
+		
 		/* 2. 변수에 성공 실패 여부를 반환한다. */
 		/* 공통부분 */
 		/*
-		URL url = new URL("JSON 주소");
-		InputStreamReader isr = new InputStreamReader(url.openConnection().getInputStream(), "UTF-8");
-		JSONObject object = (JSONObject)JSONValue.parse(isr);
-
 		출처: http://javastudy.tistory.com/80 [믿지마요 후회해요]
 		*/
 		Boolean is_gcm=false;
@@ -297,22 +254,39 @@ public class Order_fcm_queue {
 	      
 		
 		try {
-			//opinion = new URL(homepage, "opinion/deitorial.htm"); // 상대 경로로 생성
-			
-			//targetURL = new URL("http://baedalcook.co.kr/v2/ajax/set_fcm_cancel/"+Tradeid+"/"+mb_hp);
-			targetURL = new URL(urls);
+			Map<String,Object> params = new LinkedHashMap<>(); // 파라미터 세팅
+	        params.put("seq", seq);
+	        params.put("order_try_count", order_try_count);
+	        
+	        
+			StringBuilder postData = new StringBuilder();
+	        for(Map.Entry<String,Object> param : params.entrySet()) {
+	            if(postData.length() != 0) postData.append('&');
+	            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+	            postData.append('=');
+	            postData.append(URLEncoder.encode(String.valueOf(param.getValue()), "UTF-8"));
+	        }
+
+	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+	 			
+			targetURL = new URL("https://img.cashq.co.kr/api/token/set_notification.php");
 			urlConn = targetURL.openConnection();
 			HttpURLConnection cons = (HttpURLConnection) urlConn;
 			// 헤더값을 설정한다.
 			cons.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 			cons.setRequestMethod("POST");
+	        cons.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+	        
 			
 			//cons.getOutputStream().write("LOGIN".getBytes("UTF-8"));
 			cons.setDoOutput(true);
 			cons.setDoInput(true);
 			cons.setUseCaches(false);
 			cons.setDefaultUseCaches(false);
-			
+	        cons.getOutputStream().write(postDataBytes); // POST 호출
+
+
+	     //   출처: https://nine01223.tistory.com/256 [스프링연구소(spring-lab)]
 			/*
 			PrintWriter out = new PrintWriter(cons.getOutputStream());
 			out.close();*/
@@ -330,7 +304,7 @@ public class Order_fcm_queue {
 			 while ((buffer = in.readLine()) != null) {
 				 bufferHtml += buffer;
 			}
-			 System.out.println(bufferHtml);
+			 //System.out.println(bufferHtml);
 			 JSONObject object = (JSONObject)JSONValue.parse(bufferHtml);
 			 //String success=object.get("success").toString();
 			/* 
@@ -378,13 +352,13 @@ public class Order_fcm_queue {
 	 * 주문 후 5분이 지난 배달대기 배달 중 주문은 배달취소(dd:denied_delivery) 로 변경 한다.
 	 * @param string seq  
 	 *********************************************/
-	private static void update_delivery_cancel(String seq) {
+	public static void update_delivery_cancel(String seq) {
 
 		MyDataObject dao = new MyDataObject();
 		StringBuilder sb = new StringBuilder();
 		
 		try {
-				sb.append("update cashq.ordtake SET status='dd' ");
+				sb.append("update cashq.ordtake SET pay_status='ad',up_time=now() ");
 				sb.append(" where  seq=? ;");
 				dao.openPstmt(sb.toString());
 				
@@ -411,14 +385,14 @@ public class Order_fcm_queue {
 	 * update_delivery_complete
 	 * 주문 건을 자동으로 3시간이 지난 건은 배달 완료 라고 보고 배달 완료로 변경한다.
 	 */
-	private static void update_delivery_complete() {
+	public static void update_delivery_complete() {
 
 		MyDataObject dao = new MyDataObject();
 		StringBuilder sb = new StringBuilder();
 		
 		try {
 				sb.append("update cashq.ordtake SET pay_status='dc' ");
-				sb.append(" where date_add(up_time,interval 5 hour)<now() ");
+				sb.append(" where date_add(up_time,interval 3 hour)<now() ");
 				sb.append(" and pay_status in ('di') ;");
 				dao.openPstmt(sb.toString());
 
@@ -517,7 +491,7 @@ public class Order_fcm_queue {
 		try {
 			dao.openPstmt(sb.toString());
 			dao.pstmt().setString(1, seq);
-			System.out.println(seq);
+			//System.out.println(seq);
 			dao.setRs (dao.pstmt().executeQuery());
 
 			while(dao.rs().next()) 
@@ -812,29 +786,6 @@ public class Order_fcm_queue {
     // 출처: https://moonleafs.tistory.com/52 [달빛에 스러지는 낙엽들.]
     
     
-    /*
-     * run_thread()
-     * 쓰레드를 작동 시켜 10초마다 서버에 요청한다.
-     * 10초마다 요청을 하고 10초마다 요청하는 것이 30번을 하는 동안도 주문을 받지 않으면 주문 취소 함수를 실행한다.
-     * @param tradeid
-     * 
-     * */
-    private static void run_thread(Map<String, String> order_info){
-    	
-    	boolean did_you_order = false;
-    	int max_apns_count = 30;
-    	
-    	if(!did_you_order){
-    		
-    		
-    		did_you_order=check_order(order_info.get("seq"));
-    		if(!did_you_order){
-    			/*thread *30 회 구현 10초마다. */
-    		}
-    		
-    	}
-    	
-    }
 
 	/**
 	 * check_order
@@ -893,7 +844,13 @@ public class Order_fcm_queue {
 			dao.pstmt().setString(1, seq);
 			dao.setRs (dao.pstmt().executeQuery());
 			if (dao.rs().next()) {
-				/*0 exam*/
+				/* 
+				 * exam_num1
+				 * "0"  = 입력 초기 값
+				 * "1"  = 주문 승인
+				 * "2"  = 주문 취소
+				 * 
+				 * */
 				did_you_order = dao.rs().getString("exam_num1");
 			}
 
