@@ -43,7 +43,7 @@ public class Order_fcm_queue {
 	public static void doMainProcess() {
 		Connection con = DBConn.getConnection();
 		String mb_hp="";
-		String bo_status="";
+		String pay_status="";
 		String Tradeid="";
 		String seq="0";
 		String st_seq="0";
@@ -109,7 +109,7 @@ public class Order_fcm_queue {
 			sb.append("select * from ordtake where 1=1 ");
 			sb.append(" and  pay_status in ('pc', 'fpw') ");
 			sb.append(" and exam_num1='0' ");
-			sb.append(" and date_add(order_date,interval 5 minute)>now() ");
+			sb.append(" and date_add(insdate,interval 5 minute)>now() ");
 			sb.append(" ;");
 			
 			/*
@@ -135,6 +135,7 @@ public class Order_fcm_queue {
 	
 					mb_hp=dao.rs().getString("mb_hp");
 					Tradeid=dao.rs().getString("Tradeid");
+					pay_status=dao.rs().getString("pay_status");
 					
 					
 					/*상점아이디를 조회한다. select * from store where seq=? */
@@ -202,14 +203,15 @@ public class Order_fcm_queue {
 					
 					
 					// 없는 값 System.out.println(dao.rs().getString("bo_no"));
-					if(contains(VALUES, bo_status))
+					if(contains(VALUES, pay_status))
 					{
 						update_delivery_cancel(seq);
 					}
-					
-					if(bo_status.equals("delivery_wait")||bo_status.equals("delivery_handling"))
+
+					/* 배달중인 것을 배달 완료로 변경 3시간 후 */
+					if(pay_status.equals("di"))
 					{
-						/* 배달중인 것을 배달 완료로 변경 3시간 후 */
+
 						update_delivery_complete();
 					}
 				} /* while(dao.rs().next()) {...} */
@@ -268,7 +270,7 @@ public class Order_fcm_queue {
 	        }
 
 	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
-	 			
+	        https://img.cashq.co.kr/api/token/set_notification.php?seq=1858&order_try_count=1
 			targetURL = new URL("https://img.cashq.co.kr/api/token/set_notification.php");
 			urlConn = targetURL.openConnection();
 			HttpURLConnection cons = (HttpURLConnection) urlConn;
@@ -358,7 +360,7 @@ public class Order_fcm_queue {
 		StringBuilder sb = new StringBuilder();
 		
 		try {
-				sb.append("update cashq.ordtake SET pay_status='ad',up_time=now() ");
+				sb.append("update cashq.ordtake SET pay_status='ad',exam_num1='4',up_time=now() ");
 				sb.append(" where  seq=? ;");
 				dao.openPstmt(sb.toString());
 				
@@ -384,6 +386,8 @@ public class Order_fcm_queue {
 	/**
 	 * update_delivery_complete
 	 * 주문 건을 자동으로 3시간이 지난 건은 배달 완료 라고 보고 배달 완료로 변경한다.
+	 * exam_num1 = 3 
+	 * pay_statusc = 'dc' (delivery Complete)
 	 */
 	public static void update_delivery_complete() {
 
@@ -391,7 +395,7 @@ public class Order_fcm_queue {
 		StringBuilder sb = new StringBuilder();
 		
 		try {
-				sb.append("update cashq.ordtake SET pay_status='dc' ");
+				sb.append("update cashq.ordtake SET pay_status='dc',exam_num1='3' ");
 				sb.append(" where date_add(up_time,interval 3 hour)<now() ");
 				sb.append(" and pay_status in ('di') ;");
 				dao.openPstmt(sb.toString());

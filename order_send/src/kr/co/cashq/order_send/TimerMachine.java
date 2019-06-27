@@ -35,13 +35,13 @@ package kr.co.cashq.order_send;
  		hasStarted3 = false;
  		hasStarted4 = false;
  		order_timer = 30000;
- 		try_order_count = 11;
+ 		try_order_count = 10;
  	}
  	
 
  	
  	/* timer machine 1 호기 */
- 	public static void timer_machine1(String seq){
+ 	public static void timer_machine1(final String seq){
  		
  		m_timer1 = new Timer();
  		m_task1 = new TimerTask(){
@@ -120,7 +120,7 @@ package kr.co.cashq.order_send;
  	
  	
  	/* timer machine 2 호기 */
- 	static void timer_machine2(String seq){
+ 	static void timer_machine2(final String seq){
  		
  		m_timer2 = new Timer();
  		m_task2 = new TimerTask(){
@@ -147,7 +147,7 @@ package kr.co.cashq.order_send;
  					/* 주문이 승인되었다고 선언 */
  					is_order2 = true;
  					
- 					System.out.println(seq+"승인 되었습니다. 첫번째 머신을 종료 합니다. ");
+ 					System.out.println(seq+"승인 되었습니다. 두번째 머신을 종료 합니다. ");
  					count2 = 0;
  					ORDER_SEND.hasStarted2 = false;
  					ORDER_SEND.check_order_number.remove(seq);
@@ -202,7 +202,7 @@ package kr.co.cashq.order_send;
  	
 
  	/* timer machine 3 호기 */
- 	static void timer_machine3(String seq){
+ 	static void timer_machine3(final String seq){
  		
  		m_timer3 = new Timer();
  		m_task3 = new TimerTask(){
@@ -287,7 +287,7 @@ package kr.co.cashq.order_send;
  	
 
  	/* timer machine 4 호기 */
- 	static void timer_machine4(String seq){
+ 	static void timer_machine4(final String seq){
  		
  		m_timer4 = new Timer();
  		m_task4 = new TimerTask(){
@@ -396,8 +396,11 @@ package kr.co.cashq.order_send;
  		System.out.println("자동 취소 메서드 실행");
  		Utils.getLogger().info("주문 번호 `"+seq+"` 자동 취소 메서드 실행");
  		
- 		/* ordtake.pay_status='ad' 로 변경 */
+ 		/* ordtake.pay_status='ad' 로 변경  디비 갱신 */
  		Order_fcm_queue.update_delivery_cancel(seq);
+ 		
+ 		/* 알림도 요청 할 것 */
+ 		
  	}
  	
 
