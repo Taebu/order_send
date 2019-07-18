@@ -49,6 +49,10 @@ public class Order_fcm_queue {
 		String st_seq="0";
 		String bs_code="";
 		String mb_address="";
+		//set_kgorder_autocancel_from_url(String tradeid, String mobilid,String prdtprice
+		String mobilid="";
+		String prdtprice="";
+		
 		TimerMachine tm = new TimerMachine();
 		/* 배열에 들어간것은 끝난 것으로 해서 프로그램을 프로그램 루프 상 제외 문제일 경우 예외 처리하는 프로세스를 띄운다. */
 		final String[] VALUES = new String[] {"pay_complete","pay_real_card","pay_real_cash"};
@@ -136,7 +140,9 @@ public class Order_fcm_queue {
 					mb_hp=dao.rs().getString("mb_hp");
 					Tradeid=dao.rs().getString("Tradeid");
 					pay_status=dao.rs().getString("pay_status");
+					mobilid =get_mobilid(Tradeid);
 					
+					prdtprice = dao.rs().getString("appamount");
 					
 					/*상점아이디를 조회한다. select * from store where seq=? */
 					store_info=get_store_info(st_seq);
@@ -162,8 +168,7 @@ public class Order_fcm_queue {
 						ORDER_SEND.hasStarted1 = true;
 						
 						/* 첫번째  머신을 구동한다. */
-						tm.timer_machine1(seq);
-					
+						tm.timer_machine1(seq,Tradeid,mobilid,prdtprice);
 					/* 두번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 두번째 timer_machine을 구동합니다.*/
 					}else if(!ORDER_SEND.hasStarted2&&!in_order_number){
 						
@@ -174,7 +179,7 @@ public class Order_fcm_queue {
 						ORDER_SEND.hasStarted2 = true;
 						
 						/*두번째  머신을 구동한다. */
-						tm.timer_machine2(seq);
+						tm.timer_machine2(seq,Tradeid,mobilid,prdtprice);
 
 					/* 세번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 세번째 timer_machine을 구동합니다.*/
 					}else if(!ORDER_SEND.hasStarted3&&!in_order_number){
@@ -186,7 +191,7 @@ public class Order_fcm_queue {
 						ORDER_SEND.hasStarted3 = true;
 						
 						/* 세번째  머신을 구동한다. */
-						tm.timer_machine3(seq);
+						tm.timer_machine3(seq,Tradeid,mobilid,prdtprice);
 					
 					/* 네번째 머신이 구동하지 않았고 해당 주문이 추가 되지 않았다면 네번째 timer_machine을 구동합니다.*/
 					}else if(!ORDER_SEND.hasStarted4&&!in_order_number){
@@ -198,7 +203,7 @@ public class Order_fcm_queue {
 						ORDER_SEND.hasStarted4 = true;
 						
 						/* 네번째  머신을 구동한다. */
-						tm.timer_machine4(seq);
+						tm.timer_machine4(seq,Tradeid,mobilid,prdtprice);
 					}
 					
 					
@@ -270,7 +275,7 @@ public class Order_fcm_queue {
 	        }
 
 	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
-	        https://img.cashq.co.kr/api/token/set_notification.php?seq=1858&order_try_count=1
+	        // https://img.cashq.co.kr/api/token/set_notification.php?seq=1858&order_try_count=1
 			targetURL = new URL("https://img.cashq.co.kr/api/token/set_notification.php");
 			urlConn = targetURL.openConnection();
 			HttpURLConnection cons = (HttpURLConnection) urlConn;
@@ -872,4 +877,250 @@ public class Order_fcm_queue {
 		return did_you_order;
 		
 	}
+	/*
+	 * http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_req.php?seq=2037&form_mode=auto_cancel
+	 * 자동 취소 부분 신 모듈 
+	 * */
+	public static boolean set_kgorder_autocancel_from_url(String tradeid, String mobilid,String prdtprice) 
+	{
+		// TODO Auto-generated method stub
+		Boolean is_gcm=false;
+		String query="";
+		URL targetURL;
+		URLConnection urlConn = null;
+	      
+		
+		try {
+			Map<String,Object> params = new LinkedHashMap<>(); // 파라미터 세팅
+			params.put("mode","CN07");
+			params.put("recordKey","cashq.co.kr");
+			params.put("svcId","190517071943");
+			params.put("partCancelYn","N");
+			params.put("tradeId",tradeid);
+			params.put("mobilId",mobilid);
+			params.put("prdtPrice",prdtprice);
+	        
+			StringBuilder postData = new StringBuilder();
+	        for(Map.Entry<String,Object> param : params.entrySet()) {
+	            if(postData.length() != 0) postData.append('&');
+	            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+	            postData.append('=');
+	            postData.append(URLEncoder.encode(String.valueOf(param.getValue()), "UTF-8"));
+	        }
+
+	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+	        
+			targetURL = new URL("http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php");
+			urlConn = targetURL.openConnection();
+			HttpURLConnection cons = (HttpURLConnection) urlConn;
+			// 헤더값을 설정한다.
+			cons.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");	
+			cons.setRequestMethod("POST");
+	        cons.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+	        
+			
+			//cons.getOutputStream().write("LOGIN".getBytes("UTF-8"));
+			cons.setDoOutput(true);
+			cons.setDoInput(true);
+			cons.setUseCaches(false);
+			cons.setDefaultUseCaches(false);
+	        cons.getOutputStream().write(postDataBytes); // POST 호출
+
+
+	     //   출처: https://nine01223.tistory.com/256 [스프링연구소(spring-lab)]
+			/*
+			PrintWriter out = new PrintWriter(cons.getOutputStream());
+			out.close();*/
+			//System.out.println(query);
+			/* parameter setting */
+			OutputStream opstrm=cons.getOutputStream();
+			opstrm.write(query.getBytes());
+			opstrm.flush();
+			opstrm.close();
+
+			String buffer = null;
+			String bufferHtml="";
+			BufferedReader in = new BufferedReader(new InputStreamReader(cons.getInputStream()));
+
+			 while ((buffer = in.readLine()) != null) {
+				 bufferHtml += buffer;
+			}
+			 System.out.println(bufferHtml);
+			 //System.out.println(bufferHtml);
+			 JSONObject object = (JSONObject)JSONValue.parse(bufferHtml);
+			 //String success=object.get("success").toString();
+			/* 
+			int success_count=Integer.parseInt(success);
+			 if(success_count>0){
+				 is_gcm=true;
+			 }
+			 */
+			//Utils.getLogger().info(bufferHtml);
+			in.close();
+			
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS035";
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS036";
+		}catch(NullPointerException e){
+			
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.out.println("error registration_ids null");
+		}
+		return is_gcm;
+	}
+
+
+
+	/**
+	 * get_mobilid
+	 * 모바일 아이디를 불러온다. 
+	 * @param Tradeid
+	 * @return mobilid
+	 */
+	private static String get_mobilid(String tradeid) {
+		// TODO Auto-generated method stub
+		String mobilid = "";
+
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		
+		sb.append("select Mobilid from order_anp where Tradeid=?");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, tradeid);
+			//System.out.println(seq);
+			dao.setRs (dao.pstmt().executeQuery());
+
+			while(dao.rs().next()) 
+			{
+				mobilid = dao.rs().getString("Mobilid");
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return mobilid;
+	}
+	
+
+	/*
+	 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php?tradeid=2037&form_mode=auto_cancel
+	 * 자동 취소 부분 모바일 구 모듈 
+	 * */
+	public static boolean set_kgmobile_order_autocancel_from_url(String tradeid, String mobilid,String prdtprice) 
+	{
+		// TODO Auto-generated method stub
+		Boolean is_gcm=false;
+		String query="";
+		URL targetURL;
+		URLConnection urlConn = null;
+	      
+		
+		try {
+			Map<String,Object> params = new LinkedHashMap<>(); // 파라미터 세팅
+			params.put("Mrchid1","16100602");
+			params.put("Svcid1","161006029244");
+			params.put("Tradeid1",tradeid);
+			params.put("Prdtprice1",prdtprice);
+			params.put("Mobilid1",mobilid);
+			params.put("can_cnt","1");
+
+			StringBuilder postData = new StringBuilder();
+	        for(Map.Entry<String,Object> param : params.entrySet()) {
+	            if(postData.length() != 0) postData.append('&');
+	            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+	            postData.append('=');
+	            postData.append(URLEncoder.encode(String.valueOf(param.getValue()), "UTF-8"));
+	        }
+
+	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+	        
+			targetURL = new URL("http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php");
+			urlConn = targetURL.openConnection();
+			HttpURLConnection cons = (HttpURLConnection) urlConn;
+			// 헤더값을 설정한다.
+			cons.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");	
+			cons.setRequestMethod("POST");
+	        cons.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+	        
+			
+			//cons.getOutputStream().write("LOGIN".getBytes("UTF-8"));
+			cons.setDoOutput(true);
+			cons.setDoInput(true);
+			cons.setUseCaches(false);
+			cons.setDefaultUseCaches(false);
+	        cons.getOutputStream().write(postDataBytes); // POST 호출
+
+
+	     //   출처: https://nine01223.tistory.com/256 [스프링연구소(spring-lab)]
+			/*
+			PrintWriter out = new PrintWriter(cons.getOutputStream());
+			out.close();*/
+			//System.out.println(query);
+			/* parameter setting */
+			OutputStream opstrm=cons.getOutputStream();
+			opstrm.write(query.getBytes());
+			opstrm.flush();
+			opstrm.close();
+
+			String buffer = null;
+			String bufferHtml="";
+			BufferedReader in = new BufferedReader(new InputStreamReader(cons.getInputStream()));
+
+			 while ((buffer = in.readLine()) != null) {
+				 bufferHtml += buffer;
+			}
+			 System.out.println(bufferHtml);
+			 //System.out.println(bufferHtml);
+			 JSONObject object = (JSONObject)JSONValue.parse(bufferHtml);
+			 //String success=object.get("success").toString();
+			/* 
+			int success_count=Integer.parseInt(success);
+			 if(success_count>0){
+				 is_gcm=true;
+			 }
+			 */
+			//Utils.getLogger().info(bufferHtml);
+			in.close();
+			
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS035";
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS036";
+		}catch(NullPointerException e){
+			
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.out.println("error registration_ids null");
+		}
+		return is_gcm;
+	}
+
 }

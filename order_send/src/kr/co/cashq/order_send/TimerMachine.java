@@ -41,7 +41,7 @@ package kr.co.cashq.order_send;
 
  	
  	/* timer machine 1 호기 */
- 	public static void timer_machine1(final String seq){
+ 	static void timer_machine1(final String seq,final String tradeid, final String mobilid,final String prdtprice){
  		
  		m_timer1 = new Timer();
  		m_task1 = new TimerTask(){
@@ -51,6 +51,8 @@ package kr.co.cashq.order_send;
  			
  			boolean is_order1 = false;
  			boolean is_auto_cancel1 = false;
+ 			
+ 			boolean is_order_done1 = false;
  			
  			public void run() {
  				hasStarted1 = true;
@@ -74,8 +76,10 @@ package kr.co.cashq.order_send;
  					ORDER_SEND.check_order_number.remove(seq);
  				}
  				
- 				/* 주문 거절 */
- 				if(order_result.equals("2")){
+ 				is_order_done1 = order_result.equals("2")||order_result.equals("3")||order_result.equals("4")||order_result.equals("5");
+ 				
+ 				/* 주문 끝 */
+ 				if(is_order_done1){
  					/* 타이머 1 을 중지 합니다. */
  					m_timer1.cancel();
  					
@@ -84,7 +88,7 @@ package kr.co.cashq.order_send;
  					
  					/* 주문이 거절 되었다고 선언 */
  					is_order1 = false;
- 					System.out.println(seq+ "거절 되었습니다. 첫번째 머신을 종료 합니다. ");
+ 					System.out.println(seq+ "주문이 끝나게 되었습니다. 첫번째 머신을 종료 합니다. ");
  					count1 = 0;
  					ORDER_SEND.hasStarted1 = false;
  					ORDER_SEND.check_order_number.remove(seq);
@@ -107,8 +111,20 @@ package kr.co.cashq.order_send;
 					/* 자동 취소 되었습니다.  라고 선언*/
 					is_auto_cancel1 = true;
 					
-					set_auto_cancel(seq);
+					set_auto_cancel(seq,mobilid,prdtprice);
+			 		/* 2018-12월 버전으로 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php
+			 		 * */
 					count1 = 0;
+					Order_fcm_queue.set_kgorder_autocancel_from_url(tradeid,mobilid,prdtprice);
+					
+			 		/* 모바일 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
 					ORDER_SEND.hasStarted1 = false;
 					ORDER_SEND.check_order_number.remove(seq);
 				} 				
@@ -120,7 +136,7 @@ package kr.co.cashq.order_send;
  	
  	
  	/* timer machine 2 호기 */
- 	static void timer_machine2(final String seq){
+ 	static void timer_machine2(final String seq,final String tradeid, final String mobilid,final String prdtprice){
  		
  		m_timer2 = new Timer();
  		m_task2 = new TimerTask(){
@@ -130,7 +146,7 @@ package kr.co.cashq.order_send;
  			
  			boolean is_order2 = false;
  			boolean is_auto_cancel2 = false;
- 			
+ 			boolean is_order_done2 = false;
  			public void run() {
  				hasStarted2 = true;
  			    
@@ -152,9 +168,10 @@ package kr.co.cashq.order_send;
  					ORDER_SEND.hasStarted2 = false;
  					ORDER_SEND.check_order_number.remove(seq);
  				}
- 				
+
+ 				is_order_done2 = order_result.equals("2")||order_result.equals("3")||order_result.equals("4")||order_result.equals("5");
  				/* 주문 거절 */
- 				if(order_result.equals("2")){
+ 				if(is_order_done2){
  					/* 타이머 2 을 중지 합니다. */
  					m_timer2.cancel();
  					
@@ -186,7 +203,19 @@ package kr.co.cashq.order_send;
 					/* 자동 취소 되었습니다.  라고 선언*/
 					is_auto_cancel2 = true;
 					
-					set_auto_cancel(seq);
+					set_auto_cancel(seq,mobilid,prdtprice);
+			 		/* 2018-12월 버전으로 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgorder_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
+			 		/* 모바일 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
 					count2 = 0;
 					ORDER_SEND.hasStarted2 = false;
 					ORDER_SEND.check_order_number.remove(seq);
@@ -202,7 +231,7 @@ package kr.co.cashq.order_send;
  	
 
  	/* timer machine 3 호기 */
- 	static void timer_machine3(final String seq){
+ 	static void timer_machine3(final String seq,final String tradeid, final String mobilid,final String prdtprice){
  		
  		m_timer3 = new Timer();
  		m_task3 = new TimerTask(){
@@ -212,6 +241,9 @@ package kr.co.cashq.order_send;
  			
  			boolean is_order3 = false;
  			boolean is_auto_cancel3 = false;
+ 			
+ 			boolean is_order_done3 = false;
+ 			
  			
  			public void run() {
  				hasStarted3 = true;
@@ -234,8 +266,11 @@ package kr.co.cashq.order_send;
  					ORDER_SEND.check_order_number.remove(seq);
  				}
  				
+
+ 				is_order_done3 = order_result.equals("2")||order_result.equals("3")||order_result.equals("4")||order_result.equals("5");
+ 				
  				/* 주문 거절 */
- 				if(order_result.equals("2")){
+ 				if(is_order_done3){
  					/* 타이머 3 을 중지 합니다. */
  					m_timer3.cancel();
  					
@@ -269,8 +304,19 @@ package kr.co.cashq.order_send;
 					/* 자동 취소 되었습니다.  라고 선언*/
 					is_auto_cancel3 = true;
 					
-					set_auto_cancel(seq);
-					count3 = 1;
+					set_auto_cancel(seq,mobilid,prdtprice);
+			 		/* 2018-12월 버전으로 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgorder_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
+			 		/* 모바일 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);			 		
+					count3 = 0;
 					ORDER_SEND.hasStarted3 = false;
 					ORDER_SEND.check_order_number.remove(seq);
 				} 				
@@ -287,7 +333,7 @@ package kr.co.cashq.order_send;
  	
 
  	/* timer machine 4 호기 */
- 	static void timer_machine4(final String seq){
+ 	static void timer_machine4(final String seq,final String tradeid, final String mobilid,final String prdtprice){
  		
  		m_timer4 = new Timer();
  		m_task4 = new TimerTask(){
@@ -297,6 +343,7 @@ package kr.co.cashq.order_send;
  			
  			boolean is_order4 = false;
  			boolean is_auto_cancel4 = false;
+ 			boolean is_order_done4 = false;
  			
  			public void run() {
  				hasStarted4 = true;
@@ -320,9 +367,11 @@ package kr.co.cashq.order_send;
  					ORDER_SEND.hasStarted4 = false;
  					ORDER_SEND.check_order_number.remove(seq);
  				}
+
+ 				is_order_done4 = order_result.equals("2")||order_result.equals("3")||order_result.equals("4")||order_result.equals("5");
  				
  				/* 주문 거절 */
- 				if(order_result.equals("2")){
+ 				if(is_order_done4){
  					/* 타이머 4 을 중지 합니다. */
  					m_timer4.cancel();
  					
@@ -358,7 +407,19 @@ package kr.co.cashq.order_send;
 					is_auto_cancel4 = true;
 					
 					/* 자동 최소에 대한 메서드 실행 */
-					set_auto_cancel(seq);
+					set_auto_cancel(seq,mobilid,prdtprice);
+
+			 		/* 2018-12월 버전으로 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgorder_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
+			 		/* 모바일 자동 취소 url로 요청 하는 것
+			 		 * 
+			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
+			 		 * */
+			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
 					count4 = 0;
 					ORDER_SEND.hasStarted4 = false;
 					ORDER_SEND.check_order_number.remove(seq);
@@ -392,12 +453,13 @@ package kr.co.cashq.order_send;
  	
  	
  	/* 자동 최소에 대한 메서드 */
- 	static void set_auto_cancel(String seq){
+ 	static void set_auto_cancel(String seq, String mobilid,String prdtprice){
  		System.out.println("자동 취소 메서드 실행");
  		Utils.getLogger().info("주문 번호 `"+seq+"` 자동 취소 메서드 실행");
  		
  		/* ordtake.pay_status='ad' 로 변경  디비 갱신 */
  		Order_fcm_queue.update_delivery_cancel(seq);
+ 		
  		
  		/* 알림도 요청 할 것 */
  		
