@@ -626,25 +626,25 @@ public class Order_fcm_queue {
 		MyDataObject dao = new MyDataObject();
 		MyDataObject dao2 = new MyDataObject();
 		int wr_idx=0;
-		sb.append("insert into ifpl.SMSQ_SEND SET "); 
-		sb.append("dest_no=?, ");
-		sb.append("call_back=?,");
-		sb.append("msg_contents=?,");
-		sb.append("msg_instm=now(),");
-		sb.append("sendreq_time=now(),");
-		sb.append("Msg_Type='K',");
-		sb.append("title_Str='테스트3', ");
-		sb.append("k_template_code=?, ");
-		sb.append("k_next_type='N'; ");
-		
+		sb.append("INSERT INTO biztalk.em_mmt_tran SET ");
+		sb.append("date_client_req=SYSDATE(), ");
+		sb.append("template_code=?,");
+		sb.append("content=?,");
+		sb.append("recipient_num=?,");
+		sb.append("callback=?,");
+		sb.append("msg_status='1',");
+		sb.append("subject=' ', ");
+		sb.append("sender_key=?, ");
+		sb.append("service_type='3', ");
+		sb.append("msg_type='1008';");
 		try {
 
 			dao.openPstmt(sb.toString());
-			dao.pstmt().setString(1, ata_info.get("dest_no"));
-			dao.pstmt().setString(2, ata_info.get("call_back")); //0236675279
-			dao.pstmt().setString(3, ata_info.get("msg_contents"));
-			dao.pstmt().setString(4, ata_info.get("k_template_code"));
-			
+			dao.pstmt().setString(1, ata_info.get("template_code"));
+			dao.pstmt().setString(2, ata_info.get("content"));
+			dao.pstmt().setString(3, ata_info.get("mb_hp"));
+			dao.pstmt().setString(4, ata_info.get("tel"));
+			dao.pstmt().setString(5, ata_info.get("sender_key"));
 			dao.pstmt().executeUpdate();
 			
 			sb2.append("select LAST_INSERT_ID() last_id;");
@@ -669,7 +669,6 @@ public class Order_fcm_queue {
 		return wr_idx;
 		
 	}
-
 
 	/**
 	 * 해당 상점을 사용 가능으로 변경한다.
@@ -1122,5 +1121,536 @@ public class Order_fcm_queue {
 		}
 		return is_gcm;
 	}
+	
+	
+	/**
+	 * send_arlimtalk(is_order_done1, seq);
+	 * @param e
+	 */
+	public static void send_arlimtalk(String exam_num1, String seq)
+	{
+		Map<String, String> ordtake_info = new HashMap<String, String>();
+		
+		/* 알림톡 템플릿 키값이 들어 갈 key value 배열 객체 */
+		Map<String, String> messageMap=new HashMap<String, String>();
+
+		Map<String, String> ata_info = new HashMap<String, String>();
+		
+		Map<String, String> message_info = new HashMap<String, String>();
+		
+		/* 플러스친구 */
+		Map<String, String> plusfriend=new HashMap<String, String>();
+		
+		String appid = "";
+		String messages = "";
+		String mb_hp = "";
+		
+		/* 비즈톡에 입력된 값 */
+		int wr_idx=0;
+		
+		/* cashq.ordtake 정보를 seq로 불러 온다. */
+		ordtake_info = getOrdtake(seq);
+		
+		mb_hp = ordtake_info.get("mb_hp");
+		
+		/* 주문정보 (ordtake)로 TempleteInfo를 messageMap에 담는다. */
+		messageMap = getTempleteInfo(ordtake_info);
+		
+		appid = messageMap.get("appid");
+		
+		message_info = get_bt_template(exam_num1,appid,"call_point");
+		
+		plusfriend=getSenderKey(appid);
+		
+		messages=chg_regexrule(message_info.get("ata_message"),message_info.get("ata_regex"), messageMap);
+		
+		System.out.println(messages);
+		
+		ata_info.put("template_code",message_info.get("bt_code"));
+		ata_info.put("content",messages);
+		ata_info.put("mb_hp",mb_hp);
+		ata_info.put("tel",ordtake_info.get("st_vphone"));
+		ata_info.put("sender_key",plusfriend.get("bp_senderid"));
+
+		/* 알림톡 주문 승인 메시지를 전송합니다. */
+		wr_idx = set_em_mmt_tran(ata_info);
+
+		
+	}
+
+
+
+	
+	/**
+	 * @param appid
+	 * @return
+	 */
+	private static Map<String, String> getSenderKey(String appid) {
+		// TODO Auto-generated method stub
+		
+			// TODO Auto-generated method stub
+		Map<String, String> plusfriend=new HashMap<String, String>();
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		sb.append("SELECT * FROM cashq.bt_plusfriend where bp_appid = ?");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, appid);
+			dao.setRs (dao.pstmt().executeQuery());
+			while(dao.rs().next()) 
+			{
+				plusfriend.put("bp_senderid", dao.rs().getString("bp_senderid"));
+				plusfriend.put("bp_status", dao.rs().getString("bp_status"));
+				plusfriend.put("bp_terminate_date", dao.rs().getString("bp_terminate_date"));
+				plusfriend.put("bp_stop_date", dao.rs().getString("bp_stop_date"));
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return plusfriend;
+	}
+	
+
+	
+	/**
+	 * @param appid
+	 * @return
+	 */
+	private static Map<String, String> getOrdtake(String seq) {
+		// TODO Auto-generated method stub
+		
+			// TODO Auto-generated method stub
+		Map<String, String> ordtake_info =new HashMap<String, String>();
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		sb.append("SELECT * FROM cashq.ordtake where seq = ?");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, seq);
+			dao.setRs (dao.pstmt().executeQuery());
+			while(dao.rs().next()) 
+			{
+				ordtake_info = getResultMapRows(dao.rs());
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return ordtake_info;
+	}
+	
+	private static Map<String, String> getTempleteInfo(Map<String, String> ordtake) {
+		// TODO Auto-generated method stub
+		
+		// 템플릿 정보
+		Map<String, String> templete_info =new HashMap<String, String>();
+		
+		// 주문 정보
+		Map<String, String> ordtake_info =new HashMap<String, String>();
+		
+		// 주문 정보
+		Map<String, String> agency_info =new HashMap<String, String>();
+		
+		// 시아이디 포인트 정보
+		Map<String, String> cid_point_info =new HashMap<String, String>();
+		
+		// 상점 정보
+		Map<String, String> store =new HashMap<String, String>();
+		
+		// 메시지 정보
+		Map<String, String> message_info =new HashMap<String, String>();
+		
+		String mb_hp = "";
+		String st_no = "";
+		String biz_code = "";
+		String appid = "";
+
+		ordtake_info = getOrdtake(ordtake.get("seq"));
+		
+		mb_hp = ordtake_info.get("mb_hp");
+		
+		st_no = ordtake_info.get("st_seq");
+		
+		store = get_store_info(st_no);
+		
+		biz_code = store.get("biz_code");
+		
+		agency_info = get_agency(biz_code);
+		
+		/* #{업체명} 	store.name */
+		templete_info.put("store.name",ordtake_info.get("st_name"));
+		
+		/* 매장(상점)전화번호 */
+		templete_info.put("store.tel",ordtake_info.get("st_vphone"));
+
+		appid = agency_info.get("appid");
+
+		templete_info.put("appid",appid);
+		
+		/* 템플릿 메세지를 가져옵니다. */
+		message_info=get_bt_template(ordtake_info.get("exam_num1"),appid,"cid_point");
+		
+		/* 적립금액(미션조건), #{적립금액}  */
+		templete_info.put("agencyMember.point_items",getPointSet(agency_info.get("point_items")));
+		
+		/* 포인트 최소 인정금액 */
+		templete_info.put("agencyMember.min_point",String.format("%d", Integer.parseInt(agency_info.get("min_point"))));
+		
+		/* 대리점 관리자의 핸드폰 번호를 불러 옵니다. 기본값 01077430009 */
+		templete_info.put("agencyMember.cell",agency_info.get("cell"));
+		
+		/* 랜덤 6자리 치환 */
+		templete_info.put("function.get_rand_int",String.valueOf(get_rand_int()));
+
+		templete_info.put("downlink","http://hdu.cashq.co.kr/m/p/");
+		
+		 /* 개인이 보유한 모든 사용가능 0507_point에 발급한 모든  포인트 합산 금액을 불러옵니다. */
+		templete_info.put("function.total_point",get_total_point(mb_hp));
+		
+		/* 개인이 보유한 모든 사용가능 0507_point.status=1인 0507_point.point포인트가 sum한 결과를 불러옵니다. */
+		templete_info.put("function.get_point",get_point(mb_hp));
+		
+		/* agencyMember.pointset=cashbag
+		 * #{사용가능포인트} = cashq.agencyMember.minimum_point 
+		 * */
+		templete_info.put("agencyMember.minimum_point",agency_info.get("minimum_point"));
+		
+		/* 상점 공유 링크를 가져 옵니다. 
+		 * http://bdmt.cashq.co.kr/m/p/?seq=%s 형태로 상점 링크를 생성합니다.
+		 * */
+		templete_info.put("store.sharelink",get_sharelink(st_no));
+		
+		/* 로그에 기록된 시아이디포인트를 가져온다. */
+		templete_info.put("prq_store.cid_point",cid_point_info.get("prq_store.cid_point"));
+
+		int exam_num1 = Integer.parseInt(ordtake_info.get("exam_num1"));
+		
+		/* #{취소사유}	function.get_exam_num1 */
+		templete_info.put("function.get_order_status",get_order_status(exam_num1));
+		
+		/* #{주문일시}	ordtake.insdate */
+		templete_info.put("ordtake.insdate",ordtake_info.get("insdate"));
+		
+		/* #{주문번호}	ordtake.Tradeid */
+		templete_info.put("ordtake.Tradeid",ordtake_info.get("Tradeid"));
+		
+		/* #{배달주소}	ordtake.mb_address */
+		templete_info.put("ordtake.mb_address",ordtake_info.get("mb_addr1")+" "+ordtake_info.get("mb_addr2"));
+		
+		/* #{메뉴명}	 ordtake.ord_name */
+		templete_info.put("ordtake.ord_name",ordtake_info.get("ord_name"));
+		
+		/* #{대리점명}	agencyMember.agency_name */
+		templete_info.put("agencyMember.agency_name",agency_info.get("agency_name"));
+		
+		/* #{주문확인링크}	ordtake.confirmation_link */
+		templete_info.put("ordtake.confirmation_link","http://bdtalk.co.kr/m/p/");
+		
+
+		int exam_num2 = Integer.parseInt(ordtake_info.get("exam_num2"));
+		
+		/* #{배달시간}  function.get_delivery_time */
+		templete_info.put("function.get_delivery_time",get_delivery_time(exam_num2));
+		
+		return templete_info;
+	}
+
+	
+
+	/**
+	 * @param point_set ="3_5000&5_10000&10_20000"
+	 * @return
+	 * 3개 5,000원
+	 * 5개 10,000원
+	 * 10개 20,000원
+	 */
+	private static String getPointSet(String point_set) {
+		// TODO Auto-generated method stub
+		String[] regex_array=point_set.split("&");
+		String[] keys;
+		String returnValue="";
+		try{
+			/* bt_regex 의 크기 만큼 반복하여 변환한다. */
+			for (int i = 0; i < regex_array.length; i++) {
+				keys=regex_array[i].split("_");
+				returnValue=returnValue+keys[0]+"회 주문시 "+String.format("%,d", Integer.parseInt(keys[1]))+"원\n";
+			}
+		}catch(ArrayIndexOutOfBoundsException e){
+			returnValue="";
+			returnValue=returnValue+"5회 주문시 10,000원\n";
+			returnValue=returnValue+"10회 주문시  20,000원\n";
+		}
+		return returnValue;
+	}
+
+
+
+	
+	/**
+	 * @param appid
+	 * @return
+	 */
+	private static String get_total_point(String mb_hp) {
+		// TODO Auto-generated method stub
+		
+			// TODO Auto-generated method stub
+		String total_point = "0";
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		sb.append("SELECT sum(point) total_point FROM cashq.0507_point where mb_hp = ?  and ev_ed_dt>now() and status='1' ");
+		
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, mb_hp);
+			dao.setRs (dao.pstmt().executeQuery());
+			while(dao.rs().next()) 
+			{
+				total_point = dao.rs().getString("total_point");
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return total_point;
+	}
+
+	/* 사용자가 가진 모든 포인트 값을 환산하여 더한 연산 결과를 가져옵니다.
+	 * 
+	 */
+	private static String get_point(String mb_hp){
+		String point = "0";
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		sb.append("SELECT ");
+		sb.append(" sum(point) sum_point ");
+		sb.append("FROM cashq.0507_point ");
+		sb.append("where mb_hp = ? ");
+		sb.append(" and status='1';");
+		
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, mb_hp);
+			dao.setRs (dao.pstmt().executeQuery());
+			while(dao.rs().next()) 
+			{
+				point = dao.rs().getString("sum_point");
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}		
+		return point;
+	}
+
+
+
+	/**
+	 * 대리점 정보를 biz_code로 불러 옵니다. 
+	 * 불러온 정보는 hashMap  에 적재하여 리턴합니다.
+	 * @param string
+	 * @return HashMap
+	 */
+	private static Map<String, String> get_agency(String biz_code) {
+		// TODO Auto-generated method stub
+		Map<String, String> agency=new HashMap<String, String>();
+		agency.put("appid","cashq");
+		agency.put("agency_name","대리점명");
+		agency.put("pointset","off");
+		agency.put("point_items","5_10000&10_20000");
+		agency.put("min_point","12000");
+		agency.put("minimum_point","10000");
+		agency.put("cell","01077430009");
+		
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		sb.append("select * from cashq.agencyMember where biz_code = ?");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, biz_code);
+			dao.setRs (dao.pstmt().executeQuery());
+
+			if (dao.rs().next()) {
+				agency.put("appid",dao.rs().getString("appid"));
+				agency.put("agency_name",dao.rs().getString("agency_name"));
+				if(dao.rs().getString("pointset").equals("on"))
+				{
+					agency.put("pointset","on");
+					agency.put("point_items",dao.rs().getString("point_items"));
+				}
+				agency.put("min_point",dao.rs().getString("min_point"));
+				agency.put("cell",dao.rs().getString("cell"));
+				agency.put("minimum_point",dao.rs().getString("minimum_point"));
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+
+		return agency;
+	}
+
+
+	/* 가맹점이 설정한 코드 공유 링크 정보를 가져옵니다.
+	 * 
+	 */
+	private static String get_sharelink(String st_no){
+	String sharelink = "";
+	sharelink = String.format("http://bdmt.cashq.co.kr/m/p/?seq=%s",st_no);
+
+	return sharelink;
+	}
+
+	/* 
+	 * get_order_status
+	 * exam_num1에 따른 주문 상태를 불러 옵니다.
+	 * @param int exam_num1
+	 * @return String
+	 */
+	private static String get_order_status(int exam_num1)
+	{
+		String order_status = "";
+		String[] order_array = {"신규주문","주문접수","주문취소","배달완료","자동취소","승인 후 취소"};
+		
+		order_status=order_array[exam_num1];
+	
+		return order_status;
+	}
+	
+
+	/* 
+	 * get_delivery_time
+	 * exam_num1에 따른 주문 상태를 불러 옵니다.
+	 * @param int exam_num1
+	 * @return String
+	 */
+	private static String get_delivery_time(int exam_num2)
+	{
+		String order_status = "";
+		
+		String[] order_array = {"30분","40분","50분","60분","70분","80분","90분"};
+		
+		order_status=order_array[exam_num2];
+	
+		return order_status;
+	}
+
+
+
+	/**
+	 * get_bt_template
+	 * @param appid
+	 * @param ed_type
+	 * @return Map<String, String>
+	 */
+	private static Map<String, String> get_bt_template(String exam_num1, String appid,String ed_type) {
+		// TODO Auto-generated method stub
+		Map<String, String> message=new HashMap<String, String>();
+
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		sb.append("select * from cashq.bt_template ");
+		sb.append(" where exam_num1=? ");
+		//sb.append("  and bt_status='access' ");
+		sb.append("  and appid=? ");
+		sb.append("  and ed_type=? ");
+		
+		
+		
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, exam_num1);
+			dao.pstmt().setString(2, appid);
+			dao.pstmt().setString(3, ed_type);
+			dao.setRs (dao.pstmt().executeQuery());
+
+			while(dao.rs().next()) 
+			{
+				message.put("bt_type",dao.rs().getString("bt_type"));
+				System.out.println(dao.rs().getString("bt_type"));
+				if(dao.rs().getString("bt_type").equals("gcm"))
+				{
+					message.put("gcm_title",dao.rs().getString("bt_name"));
+					message.put("gcm_message",dao.rs().getString("bt_content"));
+					message.put("gcm_regex",dao.rs().getString("bt_regex"));
+					message.put("gcm_status",dao.rs().getString("bt_status"));
+				}
+				else if(dao.rs().getString("bt_type").equals("ata"))
+				{
+					message.put("ata_title",dao.rs().getString("bt_name"));					
+					message.put("ata_message",dao.rs().getString("bt_content"));
+					message.put("ata_regex",dao.rs().getString("bt_regex"));
+					message.put("bt_code",dao.rs().getString("bt_code"));
+					message.put("ata_status",dao.rs().getString("bt_status"));
+				}
+				else if(dao.rs().getString("bt_type").equals("sms"))
+				{
+					message.put("sms_title",dao.rs().getString("bt_name"));
+					message.put("sms_message",dao.rs().getString("bt_content"));
+					message.put("sms_regex",dao.rs().getString("bt_regex"));
+					message.put("sms_status",dao.rs().getString("bt_status"));
+				}
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return message;
+	}
+
+
 
 }

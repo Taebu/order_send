@@ -3,6 +3,9 @@
  */
 package kr.co.cashq.order_send;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @author Taebu
  *
@@ -27,6 +30,7 @@ package kr.co.cashq.order_send;
  	public static Timer m_timer1,m_timer2,m_timer3,m_timer4;
  	public static TimerTask m_task1,m_task2,m_task3,m_task4;
  	public static boolean hasStarted1,hasStarted2,hasStarted3,hasStarted4;
+
 
  	/* 생성자 초기화 변수 */
  	TimerMachine(){
@@ -54,6 +58,7 @@ package kr.co.cashq.order_send;
  			
  			boolean is_order_done1 = false;
  			
+ 			
  			public void run() {
  				hasStarted1 = true;
  			    
@@ -74,6 +79,10 @@ package kr.co.cashq.order_send;
  					count1 = 0;
  					ORDER_SEND.hasStarted1 = false;
  					ORDER_SEND.check_order_number.remove(seq);
+
+ 					/* 알림톡을 보냅니다. */
+ 					Order_fcm_queue.send_arlimtalk(order_result, seq);
+ 					
  				}
  				
  				is_order_done1 = order_result.equals("2")||order_result.equals("3")||order_result.equals("4")||order_result.equals("5");
@@ -92,12 +101,16 @@ package kr.co.cashq.order_send;
  					count1 = 0;
  					ORDER_SEND.hasStarted1 = false;
  					ORDER_SEND.check_order_number.remove(seq);
+
+ 					/* 알림톡을 보냅니다. */
+ 					Order_fcm_queue.send_arlimtalk(order_result, seq);
  				}
  				
  				if(count1<try_order_count&&hasStarted1){
  					count1++;
  					System.out.println(seq + "첫번째 머신이 주문을 시도 합니다. " + count1 + " 번째 아직 주문이 아직 승인되지 않았습니다 !!! ");
  					Order_fcm_queue.set_notification(seq,Integer.toString(count1));
+ 					
 
  				}
 				
