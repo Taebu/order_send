@@ -140,6 +140,9 @@ import java.util.Map;
 			 		
 					ORDER_SEND.hasStarted1 = false;
 					ORDER_SEND.check_order_number.remove(seq);
+					
+					/* 자동 취소 알림톡을 보냅니다. */
+					Order_fcm_queue.send_arlimtalk("4", seq);
 				} 				
  				
  			}
@@ -232,6 +235,9 @@ import java.util.Map;
 					count2 = 0;
 					ORDER_SEND.hasStarted2 = false;
 					ORDER_SEND.check_order_number.remove(seq);
+					
+					/* 자동 취소 알림톡을 보냅니다. */
+					Order_fcm_queue.send_arlimtalk("4", seq);
 				} 				
  				
  			}
@@ -332,6 +338,10 @@ import java.util.Map;
 					count3 = 0;
 					ORDER_SEND.hasStarted3 = false;
 					ORDER_SEND.check_order_number.remove(seq);
+					
+					/* 자동 취소 알림톡을 보냅니다. */
+					Order_fcm_queue.send_arlimtalk("4", seq);
+
 				} 				
  				
  			}
@@ -436,6 +446,10 @@ import java.util.Map;
 					count4 = 0;
 					ORDER_SEND.hasStarted4 = false;
 					ORDER_SEND.check_order_number.remove(seq);
+					
+					/* 자동 취소 알림톡을 보냅니다. */
+ 					Order_fcm_queue.send_arlimtalk("4", seq);
+
 				} 				
  				
  			}

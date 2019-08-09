@@ -265,7 +265,7 @@ public class Order_fcm_queue {
 	        params.put("seq", seq);
 	        params.put("order_try_count", order_try_count);
 	        
-	        
+	        // 
 			StringBuilder postData = new StringBuilder();
 	        for(Map.Entry<String,Object> param : params.entrySet()) {
 	            if(postData.length() != 0) postData.append('&');
@@ -565,6 +565,7 @@ public class Order_fcm_queue {
 	}
 
 
+
 	/**
 	 * 사이트 푸시로그를 전송합니다.  
 	 * 입력 : 푸시 인포.앱아이디, stype,biz_code, caller, called, wr_subject, wr_content result
@@ -574,32 +575,28 @@ public class Order_fcm_queue {
 		StringBuilder sb = new StringBuilder();
 		MyDataObject dao = new MyDataObject();
 
-		  
-		sb.append("insert into `bc_alrim_log` set ");
-		sb.append("al_appid='bdc',");
-		sb.append("al_hp=?,");
-		sb.append("al_sender=?,");
-		sb.append("bp_code=?,");
-		sb.append("bs_code=?,");
-		sb.append("al_type=?,");
-		sb.append("al_subject=?,");
-		sb.append("al_content=?,");
-		sb.append("al_datetime=now(),");
-		sb.append("al_result=?,");
-		sb.append("Tradeid=?;");
-		;
+		sb.append("insert into `site_push_log` set ");
+		sb.append("appid=?,");
+		sb.append("stype=?,");
+		sb.append("biz_code=?,");
+		sb.append("caller=?,");
+		sb.append("called=?,");
+		sb.append("wr_subject=?,");
+		sb.append("wr_content=?,");
+		sb.append("regdate=now(),");
+		sb.append("result=?,");
+		sb.append("wr_idx=?;");
 		try {
 			dao.openPstmt(sb.toString());
-			dao.pstmt().setString(1, push_info.get("al_hp"));
-			dao.pstmt().setString(2, push_info.get("al_sender"));
-			dao.pstmt().setString(3, push_info.get("bp_code"));
-			dao.pstmt().setString(4, push_info.get("bs_code"));
-			dao.pstmt().setString(5, push_info.get("al_type"));
-			dao.pstmt().setString(6, push_info.get("al_subject"));
-			dao.pstmt().setString(7, push_info.get("al_content"));
-			dao.pstmt().setString(8, push_info.get("al_result"));
-			dao.pstmt().setString(9, push_info.get("Tradeid"));
-			
+			dao.pstmt().setString(1, push_info.get("appid"));
+			dao.pstmt().setString(2, push_info.get("stype"));
+			dao.pstmt().setString(3, push_info.get("biz_code"));
+			dao.pstmt().setString(4, push_info.get("caller"));
+			dao.pstmt().setString(5, push_info.get("called"));
+			dao.pstmt().setString(6, push_info.get("wr_subject"));
+			dao.pstmt().setString(7, push_info.get("wr_content"));
+			dao.pstmt().setString(8, push_info.get("result"));
+			dao.pstmt().setString(9, push_info.get("wr_idx"));
 			dao.pstmt().executeUpdate();
 		} catch (SQLException e) {
 			Utils.getLogger().warning(e.getMessage());
@@ -1140,7 +1137,9 @@ public class Order_fcm_queue {
 		
 		/* 플러스친구 */
 		Map<String, String> plusfriend=new HashMap<String, String>();
+
 		
+		Map<String, String> push_info = new HashMap<String, String>();
 		String appid = "";
 		String messages = "";
 		String mb_hp = "";
@@ -1175,6 +1174,19 @@ public class Order_fcm_queue {
 		/* 알림톡 주문 승인 메시지를 전송합니다. */
 		wr_idx = set_em_mmt_tran(ata_info);
 
+
+		/* Site_push_log*/
+		push_info.put("appid",appid);
+		push_info.put("stype","ATASEND");
+		push_info.put("biz_code",messageMap.get("biz_code"));
+		push_info.put("caller",mb_hp);
+		push_info.put("called",messageMap.get("store.tel"));
+		push_info.put("wr_subject",messages);
+		push_info.put("wr_content","JAVA ORDER_SEND");
+		push_info.put("result","전송대기");
+		push_info.put("wr_idx",Integer.toString(wr_idx));
+		/* 전송 성공 여부에 따라 사이트 푸시 로그를 생성합니다.*/
+		set_site_push_log(push_info);
 		
 	}
 
@@ -1258,6 +1270,10 @@ public class Order_fcm_queue {
 		return ordtake_info;
 	}
 	
+	
+	/*
+	 * 주문정보를 통하여 템플릿 정보를 가져 옵니다. 주키는 biz_code가 되며, appid는 
+	 * */
 	private static Map<String, String> getTempleteInfo(Map<String, String> ordtake) {
 		// TODO Auto-generated method stub
 		
@@ -1283,7 +1299,8 @@ public class Order_fcm_queue {
 		String st_no = "";
 		String biz_code = "";
 		String appid = "";
-
+		String confirmation_link = "";
+		String downlink = "";
 		ordtake_info = getOrdtake(ordtake.get("seq"));
 		
 		mb_hp = ordtake_info.get("mb_hp");
@@ -1294,7 +1311,10 @@ public class Order_fcm_queue {
 		
 		biz_code = store.get("biz_code");
 		
+		templete_info.put("biz_code",biz_code);
+		
 		agency_info = get_agency(biz_code);
+		
 		
 		/* #{업체명} 	store.name */
 		templete_info.put("store.name",ordtake_info.get("st_name"));
@@ -1304,6 +1324,10 @@ public class Order_fcm_queue {
 
 		appid = agency_info.get("appid");
 
+		confirmation_link = get_confirmation_link(appid);
+		
+		downlink = confirmation_link;
+		
 		templete_info.put("appid",appid);
 		
 		/* 템플릿 메세지를 가져옵니다. */
@@ -1321,7 +1345,7 @@ public class Order_fcm_queue {
 		/* 랜덤 6자리 치환 */
 		templete_info.put("function.get_rand_int",String.valueOf(get_rand_int()));
 
-		templete_info.put("downlink","http://hdu.cashq.co.kr/m/p/");
+		templete_info.put("downlink",downlink);
 		
 		 /* 개인이 보유한 모든 사용가능 0507_point에 발급한 모든  포인트 합산 금액을 불러옵니다. */
 		templete_info.put("function.total_point",get_total_point(mb_hp));
@@ -1342,10 +1366,11 @@ public class Order_fcm_queue {
 		/* 로그에 기록된 시아이디포인트를 가져온다. */
 		templete_info.put("prq_store.cid_point",cid_point_info.get("prq_store.cid_point"));
 
-		int exam_num1 = Integer.parseInt(ordtake_info.get("exam_num1"));
+		int exam_num1 = Integer.parseInt(ordtake.get("exam_num1"));
+		int exam_num2 = Integer.parseInt(ordtake.get("exam_num2"));
 		
 		/* #{취소사유}	function.get_exam_num1 */
-		templete_info.put("function.get_order_status",get_order_status(exam_num1));
+		templete_info.put("function.get_order_status",get_order_status(exam_num1,exam_num2));
 		
 		/* #{주문일시}	ordtake.insdate */
 		templete_info.put("ordtake.insdate",ordtake_info.get("insdate"));
@@ -1363,10 +1388,10 @@ public class Order_fcm_queue {
 		templete_info.put("agencyMember.agency_name",agency_info.get("agency_name"));
 		
 		/* #{주문확인링크}	ordtake.confirmation_link */
-		templete_info.put("ordtake.confirmation_link","http://bdtalk.co.kr/m/p/");
+		templete_info.put("ordtake.confirmation_link",confirmation_link);
 		
 
-		int exam_num2 = Integer.parseInt(ordtake_info.get("exam_num2"));
+		exam_num2 = Integer.parseInt(ordtake_info.get("exam_num2"));
 		
 		/* #{배달시간}  function.get_delivery_time */
 		templete_info.put("function.get_delivery_time",get_delivery_time(exam_num2));
@@ -1401,8 +1426,6 @@ public class Order_fcm_queue {
 		}
 		return returnValue;
 	}
-
-
 
 	
 	/**
@@ -1551,13 +1574,17 @@ public class Order_fcm_queue {
 	 * @param int exam_num1
 	 * @return String
 	 */
-	private static String get_order_status(int exam_num1)
+	private static String get_order_status(int exam_num1,int exam_num2)
 	{
 		String order_status = "";
 		String[] order_array = {"신규주문","주문접수","주문취소","배달완료","자동취소","승인 후 취소"};
-		
+		String[] order_deny_array = {"결제정보없음","고객 요청 취소","업소사정취소","배달불가취소","재료소진","기타","부재중 자동 취소"};
+
 		order_status=order_array[exam_num1];
-	
+		if(exam_num1==2||exam_num1==5)
+		{
+			order_status=order_status+":"+order_deny_array[exam_num2];
+		}	
 		return order_status;
 	}
 	
@@ -1651,6 +1678,24 @@ public class Order_fcm_queue {
 		return message;
 	}
 
+
+	/**
+	 * appid에 따라 app을 다운받을 수 있는 링크를 반환합니다. 
+	 * @param String appid 
+	 * @return http://@appid.cashq.co.kr/m/p/"
+	 */
+	private static String get_confirmation_link(String appid) {
+		// TODO Auto-generated method stub
+
+		String returnValue="";
+		if(appid.equals("bdmt"))
+		{
+			returnValue = "http://bdtalk.co.kr/m/p/";
+		}else {
+			returnValue = String.format("http://%s.cashq.co.kr/m/p/",appid);
+		}
+		return returnValue;
+	}
 
 
 }
