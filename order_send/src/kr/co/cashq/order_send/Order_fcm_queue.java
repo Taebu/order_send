@@ -108,6 +108,7 @@ public class Order_fcm_queue {
 			 *  -  exam_num1='0' 
 			 * 조건 3) 결제가 이루어진 시점을 기준으로 5분이 지난 건을 조회 한다.
 			 *  - date_add(order_date,interval 5 minute)>now() 
+			 * 2019-09-20 13:07:19 (금요일) test
 			 *********************************************************/
 					
 			sb.append("select * from ordtake where 1=1 ");
