@@ -108,7 +108,6 @@ public class Order_fcm_queue {
 			 *  -  exam_num1='0' 
 			 * 조건 3) 결제가 이루어진 시점을 기준으로 5분이 지난 건을 조회 한다.
 			 *  - date_add(order_date,interval 5 minute)>now() 
-			 * 2019-09-20 13:07:19 (금요일) test
 			 *********************************************************/
 					
 			sb.append("select * from ordtake where 1=1 ");
@@ -399,16 +398,87 @@ public class Order_fcm_queue {
 
 		MyDataObject dao = new MyDataObject();
 		StringBuilder sb = new StringBuilder();
+		Map<String,String> code_values = new HashMap<String,String>();
+		Map<String,String> order_info = new HashMap<String,String>();
+		Map<String,String> ordtake = new HashMap<String,String>();
+		Map<String,String> order_point = new HashMap<String,String>();
+		String code_3021="";
+		String code_3022="0";
+		String trade_id = "";
+		String po_content = "";
+		boolean is_baropay_point = false;
 		
+		int po_point = 0;
+		int po_mb_point = 0;
+		
+		// SET pay_status='dc',exam_num1='3'
+	
+		sb.append("select * from cashq.ordtake ");
+		sb.append(" where date_add(up_time,interval 3 hour)<now() ");
+		sb.append(" and pay_status in ('di') ;");
 		try {
-				sb.append("update cashq.ordtake SET pay_status='dc',exam_num1='3' ");
-				sb.append(" where date_add(up_time,interval 3 hour)<now() ");
-				sb.append(" and pay_status in ('di') ;");
 				dao.openPstmt(sb.toString());
+				dao.setRs(dao.pstmt().executeQuery());
 
-				dao.pstmt().executeUpdate();
-				
-				dao.tryClose();
+				/* 2. 값이 있으면 */
+			   while(dao.rs().next()) {
+				   
+				   ordtake = getResultMapRows(dao.rs());
+				   
+				   code_values= get_codes(dao.rs().getString("st_seq"));
+				   if(code_values.get("code_3021") != null) { 
+				   code_3021 = code_values.get("code_3021");
+				   }
+				   
+				   
+				   if(code_values.get("code_3022") != null) { 
+					   code_3022 = code_values.get("code_3022");
+					}
+				   
+				   
+
+					/* 1. store.code_3021 이 Y 이고, */
+				   is_baropay_point = code_3021.equals("Y");
+					
+					/* 2. store.code_3022 가 0이상이며, */
+				   is_baropay_point = is_baropay_point && Integer.parseInt(code_3022)>0;
+				   
+				   /* Tradeid를 조회하여 trade_id(String) 변수에 담는다. */
+				   trade_id=dao.rs().getString("Tradeid");
+				   
+				   /* 3. order_point.po_type=due_point가 Tradeid가 일치하는 경우가 있을 경우 */
+				   is_baropay_point = is_baropay_point && is_due_point(trade_id);
+				   
+				   
+				   /* 위 3가지 조건을 만족했을 때 주문 예정 포인트(due_point)를 주문 포인트로 충전(charge) 생성한다.*/
+				   if(is_baropay_point)
+				   {
+					   
+					   /* due_point 정보를 불러온다.*/
+					   order_point = get_order_point(trade_id);
+					   po_point  = Integer.parseInt(ordtake.get("po_point"));
+					   po_mb_point  = Integer.parseInt(ordtake.get("po_mb_point"));
+					   po_mb_point = po_mb_point + po_point;
+					   po_content = "바로결제주문-배달완료자동적립";
+					   
+					   order_info.put("mb_id",order_point.get("mb_id"));
+					   order_info.put("mb_hp",ordtake.get("mb_hp"));
+					   order_info.put("biz_code",order_point.get("biz_code"));
+					   order_info.put("po_content",po_content);
+					   order_info.put("po_point",order_point.get("po_point"));
+					   order_info.put("po_mb_point",Integer.toString(po_mb_point));
+					   order_info.put("po_rel_table",order_point.get("po_rel_table"));
+					   order_info.put("po_type","due_point_charge");
+					   order_info.put("po_rel_id",order_point.get("po_rel_id"));
+					   order_info.put("Tradeid",trade_id);
+
+					   /* 주문 정보를 통해 order_point를 생성한다. */
+					   insert_orderpoint(order_info);
+				   }
+				   
+					dao.tryClose();   
+			   }
+				/**/
 		} catch (SQLException e) {
 			Utils.getLogger().warning(e.getMessage());
 			DBConn.latest_warning = "ErrPOS037";
@@ -1698,5 +1768,184 @@ public class Order_fcm_queue {
 		return returnValue;
 	}
 
+
+
+
+	/**
+	 * get_codes
+	 * 가맹점의 모든 코드 정보를 불러온다. 
+	 * @param st_no(st_no)
+	 * @return code <Stirng,String>
+	 */
+	private static Map<String, String> get_codes(String st_no) {
+		// TODO Auto-generated method stub
+		Map<String, String> code=new HashMap<String, String>();
+		Map<String, String> code_values=new HashMap<String, String>();
+		
+		String cv_code = "";
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		
+		sb.append("SELECT * FROM cashq.code_values where cv_no=?;");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, st_no);
+			dao.setRs (dao.pstmt().executeQuery());
+
+			while(dao.rs().next()) 
+			{
+				code = getResultMapRows(dao.rs());
+				cv_code = code.get("cv_code");
+				code_values.put("code_"+cv_code,cv_code);
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return code_values;
+	}
+
+	
+	/**
+	 * is_due_point
+	 * Tradeid와 po_type이 due_point가 있는지 조회 해서 있으면 true를 없으면 false를 반환한다.  
+	 * @param String Tradeid 주문번호
+	 * @return is_due_point
+	 */
+	public static boolean is_due_point(String Tradeid) {
+		// TODO Auto-generated method stub
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		boolean is_due_point = false;
+		
+		sb.append("select * from cashq.ordtake ");
+		sb.append(" where Tradeid=? ");
+		sb.append(" and po_type='due_point';");
+
+	
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, Tradeid);
+			dao.setRs (dao.pstmt().executeQuery());
+			if (dao.rs().next()) {
+				
+				is_due_point = true;
+			}
+
+		} catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS060";
+		} catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS061";
+		} finally {
+			dao.closePstmt();
+		}
+		return is_due_point;
+		
+	}
+
+
+	/**
+	 * insert_orderpoint
+	 * 조건에 맞는 주문포인트를 생성합니다.  
+	 * 입력 : order_point에 맞는 Map<String, String> 형태의 HashMap을 할당한다.
+	 */
+	private static void insert_orderpoint(Map<String, String> order_point) {
+		// TODO Auto-generated method stub
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		
+		sb.append("INSERT INTO cashq.order_point SET ");
+		sb.append("mb_id=?,");
+		sb.append("mb_hp=?,");
+		sb.append("biz_code=?,");
+		sb.append("po_content=?,");
+		sb.append("po_point=?,");
+		sb.append("po_expire_date='9999-12-31',");
+		sb.append("po_mb_point=?,");
+		sb.append("po_rel_table=?,");
+		sb.append("po_type=?,");
+		sb.append("po_rel_action=now(),");
+		sb.append("po_rel_id=?,");
+		sb.append("pt_stat='none',");
+		sb.append("Tradeid=?,");
+		sb.append("po_datetime=now();");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, order_point.get("mb_id"));
+			dao.pstmt().setString(2, order_point.get("mb_hp"));
+			dao.pstmt().setString(3, order_point.get("biz_code"));
+			dao.pstmt().setString(4, order_point.get("po_content"));
+			dao.pstmt().setString(5, order_point.get("po_point"));
+			dao.pstmt().setString(6, order_point.get("po_mb_point"));
+			dao.pstmt().setString(7, order_point.get("po_rel_table"));
+			dao.pstmt().setString(8, order_point.get("po_type"));
+			dao.pstmt().setString(9, order_point.get("po_rel_id"));
+			dao.pstmt().setString(10, order_point.get("Tradeid"));
+			dao.pstmt().executeUpdate();
+		} catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS060";
+		} catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS061";
+		} finally {
+			dao.closePstmt();
+			
+		}
+	}
+	
+	/**
+	 * get_order_point
+	 * 주문 포인트 정보에 due_point가 있는 것을 불러온다. 
+	 * @param seq(seq)
+	 * @return store <Stirng,String>
+	 */
+	private static Map<String, String> get_order_point(String Tradeid) {
+		// TODO Auto-generated method stub
+		Map<String, String> order_point=new HashMap<String, String>();
+
+		
+		StringBuilder sb = new StringBuilder();
+		MyDataObject dao = new MyDataObject();
+		
+		sb.append("SELECT * FROM cashq.order_point where Tradeid=? and po_type='due_point' limit 1");
+		try {
+			dao.openPstmt(sb.toString());
+			dao.pstmt().setString(1, Tradeid);
+
+			dao.setRs (dao.pstmt().executeQuery());
+
+			while(dao.rs().next()) 
+			{
+				order_point = getResultMapRows(dao.rs());
+			}			
+		}catch (SQLException e) {
+			Utils.getLogger().warning(e.getMessage());
+			DBConn.latest_warning = "ErrPOS039";
+			e.printStackTrace();
+		}catch (Exception e) {
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS040";
+		}
+		finally {
+			dao.closePstmt();
+		}
+		return order_point;
+	}
 
 }
