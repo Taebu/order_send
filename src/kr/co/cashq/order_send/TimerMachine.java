@@ -65,7 +65,8 @@ import java.util.Map;
  				order_result = Order_fcm_queue.check_order_result(seq);
  				
  				/* 주문 승인*/
- 				if(order_result.equals("1")){
+ 				if(order_result.equals("1"))
+ 				{
  					/* 타이머 1 을 중지 합니다. */
  					m_timer1.cancel();
  					
@@ -81,8 +82,7 @@ import java.util.Map;
  					ORDER_SEND.check_order_number.remove(seq);
 
  					/* 알림톡을 보냅니다. */
- 					Order_fcm_queue.send_arlimtalk(order_result, seq);
- 					
+ 					Order_fcm_queue.send_arlimtalk(order_result, seq); 					
  				}
  				
  				is_order_done1 = order_result.equals("2")||order_result.equals("3")||order_result.equals("4")||order_result.equals("5");
@@ -137,6 +137,16 @@ import java.util.Map;
 			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
 			 		 * */
 			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
+			 		
+			 		//Order_fcm_queue.set_danal_card_order_autocancel_from_url(tradeid);
+			 		
+			 		/* 다날 카드 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_card_autocancel_from_url(tradeid);
+			 		
+			 		/* 다날 모바일 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_mobile_order_autocancel_from_url(tradeid);
+			 		
 			 		
 					ORDER_SEND.hasStarted1 = false;
 					ORDER_SEND.check_order_number.remove(seq);
@@ -231,6 +241,12 @@ import java.util.Map;
 			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
 			 		 * */
 			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
+
+			 		/* 다날 카드 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_card_autocancel_from_url(tradeid);
+			 		
+			 		/* 다날 모바일 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_mobile_order_autocancel_from_url(tradeid);
 			 		
 					count2 = 0;
 					ORDER_SEND.hasStarted2 = false;
@@ -334,7 +350,14 @@ import java.util.Map;
 			 		 * 
 			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
 			 		 * */
-			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);			 		
+			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
+			 		
+			 		/* 다날 카드 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_card_autocancel_from_url(tradeid);
+			 		
+			 		/* 다날 모바일 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_mobile_order_autocancel_from_url(tradeid);
+			 		
 					count3 = 0;
 					ORDER_SEND.hasStarted3 = false;
 					ORDER_SEND.check_order_number.remove(seq);
@@ -443,7 +466,14 @@ import java.util.Map;
 			 		 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php
 			 		 * */
 			 		Order_fcm_queue.set_kgmobile_order_autocancel_from_url(tradeid,mobilid,prdtprice);
-					count4 = 0;
+					
+			 		/* 다날 카드 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_card_autocancel_from_url(tradeid);
+			 		
+			 		/* 다날 모바일 자동 취소 2020-04-10 */
+			 		Order_fcm_queue.set_danal_mobile_order_autocancel_from_url(tradeid);
+			 		
+			 		count4 = 0;
 					ORDER_SEND.hasStarted4 = false;
 					ORDER_SEND.check_order_number.remove(seq);
 					

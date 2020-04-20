@@ -1048,6 +1048,105 @@ public class Order_fcm_queue {
 
 
 
+
+	/*
+	 * http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_req.php?seq=2037&form_mode=auto_cancel
+	 * 자동 취소 부분 신 모듈 
+	 * */
+	public static boolean set_danal_card_autocancel_from_url(String tradeid) 
+	{
+		// TODO Auto-generated method stub
+		Boolean is_gcm=false;
+		String query="";
+		URL targetURL;
+		URLConnection urlConn = null;
+	      
+		
+		try {
+			Map<String,Object> params = new LinkedHashMap<>(); // 파라미터 세팅
+
+			params.put("TradeId",tradeid);
+	        
+			StringBuilder postData = new StringBuilder();
+	        for(Map.Entry<String,Object> param : params.entrySet()) {
+	            if(postData.length() != 0) postData.append('&');
+	            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+	            postData.append('=');
+	            postData.append(URLEncoder.encode(String.valueOf(param.getValue()), "UTF-8"));
+	        }
+
+	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+	        
+			//targetURL = new URL("http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php");
+			targetURL = new URL("http://cashq.co.kr/adm/ext/kgmobilians/card/cancel/cn_cancel_result.php");
+			urlConn = targetURL.openConnection();
+			HttpURLConnection cons = (HttpURLConnection) urlConn;
+			// 헤더값을 설정한다.
+			cons.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");	
+			cons.setRequestMethod("POST");
+	        cons.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+	        
+			
+			//cons.getOutputStream().write("LOGIN".getBytes("UTF-8"));
+			cons.setDoOutput(true);
+			cons.setDoInput(true);
+			cons.setUseCaches(false);
+			cons.setDefaultUseCaches(false);
+	        cons.getOutputStream().write(postDataBytes); // POST 호출
+
+
+	     //   출처: https://nine01223.tistory.com/256 [스프링연구소(spring-lab)]
+			/*
+			PrintWriter out = new PrintWriter(cons.getOutputStream());
+			out.close();*/
+			//System.out.println(query);
+			/* parameter setting */
+			OutputStream opstrm=cons.getOutputStream();
+			opstrm.write(query.getBytes());
+			opstrm.flush();
+			opstrm.close();
+
+			String buffer = null;
+			String bufferHtml="";
+			BufferedReader in = new BufferedReader(new InputStreamReader(cons.getInputStream()));
+
+			 while ((buffer = in.readLine()) != null) {
+				 bufferHtml += buffer;
+			}
+			 System.out.println(bufferHtml);
+			 //System.out.println(bufferHtml);
+			 JSONObject object = (JSONObject)JSONValue.parse(bufferHtml);
+			 //String success=object.get("success").toString();
+			/* 
+			int success_count=Integer.parseInt(success);
+			 if(success_count>0){
+				 is_gcm=true;
+			 }
+			 */
+			//Utils.getLogger().info(bufferHtml);
+			in.close();
+			
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS035";
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS036";
+		}catch(NullPointerException e){
+			
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.out.println("error registration_ids null");
+		}
+		return is_gcm;
+	}
+	
 	/**
 	 * get_mobilid
 	 * 모바일 아이디를 불러온다. 
@@ -1122,6 +1221,105 @@ public class Order_fcm_queue {
 	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
 	        
 			targetURL = new URL("http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php");
+			urlConn = targetURL.openConnection();                 
+			HttpURLConnection cons = (HttpURLConnection) urlConn;
+			// 헤더값을 설정한다.
+			cons.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");	
+			cons.setRequestMethod("POST");
+	        cons.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+	        
+			
+			//cons.getOutputStream().write("LOGIN".getBytes("UTF-8"));
+			cons.setDoOutput(true);
+			cons.setDoInput(true);
+			cons.setUseCaches(false);
+			cons.setDefaultUseCaches(false);
+	        cons.getOutputStream().write(postDataBytes); // POST 호출
+
+
+	     //   출처: https://nine01223.tistory.com/256 [스프링연구소(spring-lab)]
+			/*
+			PrintWriter out = new PrintWriter(cons.getOutputStream());
+			out.close();*/
+			//System.out.println(query);
+			/* parameter setting */
+			OutputStream opstrm=cons.getOutputStream();
+			opstrm.write(query.getBytes());
+			opstrm.flush();
+			opstrm.close();
+
+			String buffer = null;
+			String bufferHtml="";
+			BufferedReader in = new BufferedReader(new InputStreamReader(cons.getInputStream()));
+
+			 while ((buffer = in.readLine()) != null) {
+				 bufferHtml += buffer;
+			}
+			 System.out.println(bufferHtml);
+			 //System.out.println(bufferHtml);
+			 JSONObject object = (JSONObject)JSONValue.parse(bufferHtml);
+			 //String success=object.get("success").toString();
+			/* 
+			int success_count=Integer.parseInt(success);
+			 if(success_count>0){
+				 is_gcm=true;
+			 }
+			 */
+			//Utils.getLogger().info(bufferHtml);
+			in.close();
+			
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS035";
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			Utils.getLogger().warning(e.getMessage());
+			Utils.getLogger().warning(Utils.stack(e));
+			DBConn.latest_warning = "ErrPOS036";
+		}catch(NullPointerException e){
+			
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.out.println("error registration_ids null");
+		}
+		return is_gcm;
+	}
+	
+
+	/*
+	 * http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php?tradeid=2037&form_mode=auto_cancel
+	 * 자동 취소 부분 모바일 구 모듈 
+	 * */
+	public static boolean set_danal_mobile_order_autocancel_from_url(String tradeid) 
+	{
+		// TODO Auto-generated method stub
+		Boolean is_gcm=false;
+		String query="";
+		URL targetURL;
+		URLConnection urlConn = null;
+	      
+		
+		try {
+			Map<String,Object> params = new LinkedHashMap<>(); // 파라미터 세팅
+			params.put("Tradeid",tradeid);
+			
+
+			StringBuilder postData = new StringBuilder();
+	        for(Map.Entry<String,Object> param : params.entrySet()) {
+	            if(postData.length() != 0) postData.append('&');
+	            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+	            postData.append('=');
+	            postData.append(URLEncoder.encode(String.valueOf(param.getValue()), "UTF-8"));
+	        }
+
+	        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+	        
+			//targetURL = new URL("http://cashq.co.kr/adm/ext/kgmobilians/mobile/cancel/cancel_result.php");
+	        targetURL = new URL("http://cashq.co.kr/ext/danal/BillCancel.php");
 			urlConn = targetURL.openConnection();
 			HttpURLConnection cons = (HttpURLConnection) urlConn;
 			// 헤더값을 설정한다.
@@ -1197,6 +1395,10 @@ public class Order_fcm_queue {
 	 */
 	public static void send_arlimtalk(String exam_num1, String seq)
 	{
+		if(exam_num1.equals("3")) {
+			return;
+		}
+		
 		Map<String, String> ordtake_info = new HashMap<String, String>();
 		
 		/* 알림톡 템플릿 키값이 들어 갈 key value 배열 객체 */
